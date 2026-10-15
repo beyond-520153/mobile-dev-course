@@ -1,23 +1,45 @@
 package com.example.kfc.controller;
 
+import com.example.kfc.common.result.Result;
+import com.example.kfc.domain.vo.OrderItemVO;
+import com.example.kfc.service.OrderItemService;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 订单明细模块 —— 控制层 Controller
  *
- * <p>职责：接收 HTTP 请求、参数校验、调用 Service、封装统一响应。
- * <p>禁止：写业务判断、直接访问数据库 / Redis。
+ * <p>明细在下单时由 OrderService 统一写入，这里只暴露查询与单条删除。
  */
 @RestController
 @RequestMapping("/api/order-items")
 public class OrderItemController {
 
-    // TODO 构造器注入 OrderItemService
+    private final OrderItemService orderItemService;
 
-    // TODO POST   /api/order-items          新增
-    // TODO GET    /api/order-items/{id}     详情
-    // TODO GET    /api/order-items          分页列表
-    // TODO PUT    /api/order-items/{id}     修改
-    // TODO DELETE /api/order-items/{id}     删除
+    public OrderItemController(OrderItemService orderItemService) {
+        this.orderItemService = orderItemService;
+    }
+
+    @GetMapping
+    public Result<List<OrderItemVO>> list(@RequestParam Long orderId) {
+        return Result.success(orderItemService.listByOrder(orderId));
+    }
+
+    @GetMapping("/{id}")
+    public Result<OrderItemVO> getById(@PathVariable Long id) {
+        return Result.success(orderItemService.getById(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        orderItemService.delete(id);
+        return Result.success();
+    }
 }

@@ -1,11 +1,19 @@
 package com.example.kfc.domain.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * 登录入参
- * TODO 建议字段：username / password
- * TODO 补充校验注解（@NotBlank / @NotNull / @Min 等）
  */
+@Getter
+@Setter
 public class LoginDTO {
 
-    // TODO 补充字段
+    @NotBlank(message = "用户名不能为空")
+    private String username;
+
+    @NotBlank(message = "密码不能为空")
+    private String password;
 }

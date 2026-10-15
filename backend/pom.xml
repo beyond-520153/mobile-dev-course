@@ -65,6 +65,26 @@
 
     <build>
         <plugins>
+            <!--
+              JDK 23 起 javac 默认不再从 classpath 自动发现注解处理器（-proc 默认值变了），
+              Lombok 这种「只提供注解处理器、运行期不需要」的库必须显式声明 processorPath，
+              否则 @Getter/@Setter 静默失效，编译时报一堆 cannot find symbol。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <proc>full</proc>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

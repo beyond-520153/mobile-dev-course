@@ -1,8 +1,13 @@
 /**
- * 订单明细 数据模型
- * TODO 字段需与后端 domain/entity/OrderItem.java 保持一致
+ * 订单明细 —— 与后端 domain/vo/OrderItemVO.java 字段一一对应
  */
 export interface OrderItem {
-  id?: number;
-  // TODO 补充字段
+  id: number;
+  orderId: number;
+  productId: number;
+  productName: string;
+  productImage?: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
 }

@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KFC 点餐 · 前后端联调预览</title>
+<style>
+  :root{
+    --primary:#E4002B; --primary-dark:#C10023; --accent:#FFC72C;
+    --bg:#F5F5F5; --card:#FFFFFF; --sidebar:#F7F7F7;
+    --text:#1A1A1A; --sub:#8A8A8A; --hint:#B5B5B5; --line:#EFEFEF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;background:#E9EBEE;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text);display:flex;flex-direction:column;align-items:center;padding:18px 12px 40px;
+  }
+  .page-title{font-size:15px;font-weight:700;color:#333}
+  .page-hint{font-size:12px;color:#777;margin-top:6px;text-align:center;line-height:1.7}
+  .page-hint code{background:#fff;border-radius:4px;padding:1px 5px;font-size:11px}
+
+  /* 手机外壳 */
+  .phone{
+    width:390px;max-width:100%;height:780px;margin-top:14px;background:var(--bg);
+    border-radius:26px;border:8px solid #22262B;overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 18px 40px rgba(0,0,0,.22);position:relative;
+  }
+  .statusbar{
+    height:26px;background:var(--primary);color:#fff;font-size:11px;
+    display:flex;align-items:center;justify-content:space-between;padding:0 14px;flex:none;
+  }
+  .screen{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+
+  /* 通用 */
+  .navbar{
+    height:46px;background:#fff;display:flex;align-items:center;flex:none;
+    border-bottom:1px solid var(--line);padding:0 6px;
+  }
+  .navbar .back{width:40px;font-size:22px;text-align:center;cursor:pointer;color:var(--text)}
+  .navbar .title{flex:1;text-align:center;font-size:16px;font-weight:700}
+  .navbar .act{width:50px;text-align:center;font-size:13px;color:var(--primary);cursor:pointer}
+  .toast{
+    position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(0,0,0,.78);
+    color:#fff;font-size:12px;padding:8px 14px;border-radius:16px;opacity:0;transition:opacity .22s;
+    pointer-events:none;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis;z-index:50;
+  }
+  .toast.show{opacity:1}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--sub);font-size:13px;gap:10px}
+  .empty .big{font-size:44px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 16px;
+    border-radius:17px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;
+    border:none;cursor:pointer;font-family:inherit;
+  }
+  .btn.ghost{background:#fff;color:var(--primary);border:1px solid var(--primary)}
+  .btn.gray{background:#fff;color:var(--sub);border:1px solid var(--line)}
+  .btn:disabled{background:#D0D0D0;cursor:not-allowed}
+
+  /* 顶部取餐方式栏 */
+  .topbar{background:var(--primary);color:#fff;padding:8px 12px 10px;flex:none}
+  .topbar .row1{display:flex;align-items:center;font-size:13px}
+  .topbar .row1 .store{font-size:18px;font-weight:800}
+  .topbar .row1 .shop{margin-left:8px;font-size:12px;color:#FFD9DE}
+  .topbar .row1 .switch{margin-left:auto;font-size:12px;cursor:pointer}
+  .segment{display:flex;margin-top:10px;background:rgba(255,255,255,.16);border-radius:16px;padding:3px}
+  .segment div{
+    flex:1;text-align:center;font-size:13px;line-height:28px;border-radius:14px;cursor:pointer;color:#fff;
+  }
+  .segment div.on{background:#fff;color:var(--primary);font-weight:700}
+
+  /* 点餐主体 */
+  .menu{flex:1;display:flex;overflow:hidden}
+  .sidebar{width:88px;background:var(--sidebar);overflow-y:auto;flex:none;scrollbar-width:none}
+  .sidebar::-webkit-scrollbar{display:none}
+  .sidebar .item{
+    height:56px;display:flex;align-items:center;font-size:13px;color:var(--text);
+    padding:0 8px 0 0;cursor:pointer;border-left:3px solid transparent;
+  }
+  .sidebar .item.on{background:#fff;color:var(--primary);font-weight:700;border-left-color:var(--primary)}
+  .products{flex:1;overflow-y:auto;background:#fff;scrollbar-width:none}
+  .products::-webkit-scrollbar{display:none}
+  .cat-title{font-size:12px;color:var(--sub);background:var(--bg);padding:10px 12px 6px;position:sticky;top:0;z-index:2}
+  .prod{display:flex;gap:10px;padding:12px;border-bottom:1px solid #FAFAFA}
+  .thumb{
+    width:78px;height:78px;border-radius:16px;background:#FFF4E0;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:36px;
+  }
+  .prod .info{flex:1;min-width:0;display:flex;flex-direction:column;height:78px}
+  .prod .name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prod .desc{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.4;max-height:30px;overflow:hidden}
+  .prod .foot{margin-top:auto;display:flex;align-items:center}
+  .price{color:var(--primary);font-weight:800;font-size:17px}
+  .price small{font-size:11px}
+  .plus{
+    margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;
+    line-height:1;user-select:none;
+  }
+  .plus.off{background:#D0D0D0;cursor:not-allowed}
+
+  /* 底部购物车栏 */
+  .cartbar{
+    height:60px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;
+    padding:0 12px;flex:none;gap:10px;
+  }
+  .carticon{
+    width:44px;height:44px;border-radius:50%;background:#CCC;color:#fff;font-size:20px;
+    display:flex;align-items:center;justify-content:center;position:relative;flex:none;
+  }
+  .carticon.on{background:var(--primary)}
+  .badge{
+    position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;border-radius:8px;background:#fff;
+    color:var(--primary);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    padding:0 3px;border:1px solid var(--primary);
+  }
+  .cartinfo{flex:1;cursor:pointer;min-width:0}
+  .cartinfo .amt{font-size:18px;font-weight:800;color:var(--primary)}
+  .cartinfo .amt small{font-size:11px}
+  .cartinfo .sub{font-size:10px;color:var(--hint);margin-top:2px}
+
+  /* 底部 tab */
+  .tabbar{height:52px;background:#fff;border-top:1px solid var(--line);display:flex;flex:none}
+  .tabbar div{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:11px;color:var(--sub);gap:2px;cursor:pointer;
+  }
+  .tabbar div span{font-size:20px}
+  .tabbar div.on{color:var(--primary)}
+
+  /* 列表卡片 */
+  .list{padding:10px 12px;overflow-y:auto;flex:1;scrollbar-width:none}
+  .list::-webkit-scrollbar{display:none}
+  .card{background:#fff;border-radius:10px;padding:12px;margin-bottom:10px}
+  .line{display:flex;align-items:center;gap:8px}
+  .muted{color:var(--sub);font-size:12px}
+  .hint{color:var(--hint);font-size:11px}
+  .divider{height:1px;background:var(--line);margin:8px 0}
+  .field{display:flex;align-items:center;margin-top:10px}
+  .field label{width:64px;font-size:13px;color:var(--sub);flex:none}
+  .field input{
+    flex:1;height:38px;border:none;background:#F7F7F7;border-radius:8px;padding:0 10px;
+    font-size:13px;font-family:inherit;min-width:0;
+  }
+  .stepper{display:flex;align-items:center;gap:8px;flex:none}
+  .stepper .op{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--text);background:#fff;
+  }
+  .stepper .op.plusop{background:var(--primary);border-color:var(--primary);color:#fff}
+  .stepper .qty{min-width:22px;text-align:center;font-size:14px;font-weight:700}
+  .banner{background:var(--primary);color:#fff;padding:20px 12px;text-align:center;flex:none}
+  .banner .code{font-size:40px;font-weight:800;letter-spacing:2px;margin-top:6px}
+  .banner .st{font-size:20px;font-weight:700}
+  .banner .sub{font-size:12px;color:#FFD9DE;margin-top:8px}
+  .chips{display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+  .chips div{
+    flex:1;text-align:center;height:30px;line-height:30px;border-radius:15px;font-size:13px;
+    color:var(--sub);cursor:pointer;
+  }
+  .chips div.on{background:var(--primary);color:#fff;font-weight:700}
+  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .profile{background:var(--primary);color:#fff;padding:20px 12px;flex:none;display:flex;align-items:center;gap:12px}
+  .avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.24);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+  .vip{background:var(--accent);color:#7A4B00;font-size:10px;border-radius:4px;padding:1px 5px;margin-left:8px;font-weight:700}
+  .rows{background:#fff;margin-top:10px;flex:none}
+  .rows .r{height:50px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+  .rows .r .ic{width:28px;font-size:18px}
+  .rows .r .ar{margin-left:auto;color:var(--hint)}
+  .pad{padding:0 12px}
+</style>
+</head>
+<body>
+
+<div class="page-title">KFC 点餐 · 前后端联调预览</div>
+<div class="page-hint">
+  这个页面跑在 Spring Boot 的静态资源里，和接口同源，用来在没有模拟器/真机时<br>
+  验证「鸿蒙端界面 + 后端 CRUD」这条链路。数据都是真实接口返回的。<br>
+  接口地址 <code id="apiBase"></code> 　后端状态 <code id="health">检测中…</code>
+</div>
+
+<div class="phone">
+  <div class="statusbar">
+    <span id="clock">21:00</span>
+    <span>KFC 点餐</span>
+    <span>100%</span>
+  </div>
+  <div class="screen" id="screen"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ============================ 基础设施 ============================ */
+const state = {
+  view: 'menu',            // menu | cart | orders | orderDetail | address | mine | login
+  userId: 0,
+  user: null,
+  pickupType: 'PICKUP',
+  categories: [],
+  activeCategory: 0,
+  cartItems: [],
+  cartCount: 0,
+  cartAmount: 0,
+  orders: [],
+  orderFilter: 'ALL',
+  currentOrder: null,
+  addresses: [],
+  remark: '',
+  addressForm: { receiver:'', phone:'', province:'浙江省', city:'杭州市', district:'临安区', detail:'', isDefault:true },
+  loginMode: 'LOGIN',
+  loginForm: { username:'demo', password:'123456', nickname:'', phone:'' },
+  busy: false
+};
+
+const DEMO = { username: 'demo', password: '123456' };
+document.getElementById('apiBase').textContent = location.origin + '/api';
+
+async function api(path, method, body) {
+  const res = await fetch('/api' + path, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const json = await res.json();
+  if (json.code !== 200) throw new Error(json.message || ('HTTP ' + res.status));
+  return json.data;
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function money(n) { return Number(n).toFixed(2); }
+function dt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.replace(/\.(\d{3})\d+/, '.$1'));
+  if (isNaN(d.getTime())) return iso;
+  const p = n => (n < 10 ? '0' + n : '' + n);
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const esc = s => String(s === undefined || s === null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ============================ 数据动作 ============================ */
+async function loadMenu() {
+  state.categories = await api('/categories');
+}
+async function loadCart() {
+  if (!state.userId) { state.cartItems = []; state.cartCount = 0; state.cartAmount = 0; return; }
+  state.cartItems = await api('/cart-items?userId=' + state.userId);
+  const s = await api('/cart-items/summary?userId=' + state.userId);
+  state.cartCount = s.count;
+  state.cartAmount = Number(s.amount);
+}
+async function loadOrders() {
+  if (!state.userId) { state.orders = []; return; }
+  state.orders = await api('/orders?userId=' + state.userId);
+}
+async function loadAddresses() {
+  if (!state.userId) { state.addresses = []; return; }
+  state.addresses = await api('/addresses?userId=' + state.userId);
+}
+async function login(username, password) {
+  const user = await api('/users/login', 'POST', { username, password });
+  state.userId = user.id;
+  state.user = user;
+  await loadCart();
+  return user;
+}
+async function addToCart(product) {
+  if (!state.userId) { toast('请先登录'); go('login'); return; }
+  try {
+    await api('/cart-items', 'POST', { userId: state.userId, productId: product.id, quantity: 1 });
+    await loadCart();
+    toast('已加入 ' + product.name);
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+/* ============================ 视图切换 ============================ */
+function go(view) {
+  state.view = view;
+  if (view === 'cart') loadCart().then(render).catch(e => toast(e.message));
+  if (view === 'orders') loadOrders().then(render).catch(e => toast(e.message));
+  if (view === 'address') loadAddresses().then(render).catch(e => toast(e.message));
+  if (view === 'mine' && state.userId) {
+    api('/users/' + state.userId).then(u => { state.user = u; render(); }).catch(() => {});
+  }
+  render();
+}
+
+/* ============================ 渲染 ============================ */
+function render() {
+  const screen = document.getElementById('screen');
+  const views = {
+    menu: viewMenu, cart: viewCart, orders: viewOrders,
+    orderDetail: viewOrderDetail, address: viewAddress, mine: viewMine, login: viewLogin
+  };
+  screen.innerHTML = (views[state.view] || viewMenu)();
+  bind();
+}
+
+/* ---------- 点餐首页 ---------- */
+function viewMenu() {
+  if (!state.categories.length) {
+    return `<div class="empty"><div class="big">😕</div><div>菜单还没加载出来</div>
+      <button class="btn" data-act="reload-menu">重新加载</button></div>`;
+  }
+  const sidebar = state.categories.map((c, i) =>
+    `<div class="item ${i === state.activeCategory ? 'on' : ''}" data-cat="${i}">${esc(c.name)}</div>`).join('');
+
+  const products = state.categories.map((c, ci) => {
+    const rows = c.products.map(p => `
+      <div class="prod">
+        <div class="thumb">${esc(p.image || '🍔')}</div>
+        <div class="info">
+          <div class="name">${esc(p.name)}</div>
+          <div class="desc">${esc(p.description || '')}</div>
+          <div class="foot">
+            <span class="price"><small>¥</small>${money(p.price)}</span>
+            <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
+          </div>
+        </div>
+      </div>`).join('');
+    return `<div class="cat-section" data-sec="${ci}"><div class="cat-title">${esc(c.name)}</div>${rows}</div>`;
+  }).join('');
+
+  return `
+    <div class="topbar">
+      <div class="row1">
+        <span class="store">KFC 点餐</span>
+        <span class="shop">浙江农林大学店</span>
+        <span class="switch">门店 ▾</span>
+      </div>
+      <div class="segment">
+        <div class="${state.pickupType === 'PICKUP' ? 'on' : ''}" data-pickup="PICKUP">到店自取</div>
+        <div class="${state.pickupType === 'DELIVERY' ? 'on' : ''}" data-pickup="DELIVERY">外送到家</div>
+      </div>
+    </div>
+    <div class="menu">
+      <div class="sidebar" id="sidebar">${sidebar}</div>
+      <div class="products" id="products">${products}</div>
+    </div>
+    ${cartBar()}
+    ${tabBar('menu')}`;
+}
+
+function cartBar() {
+  const on = state.cartCount > 0;
+  return `
+    <div class="cartbar">
+      <div class="carticon ${on ? 'on' : ''}">🛒${on ? `<span class="badge">${state.cartCount}</span>` : ''}</div>
+      <div class="cartinfo" data-act="go-cart">
+        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
+        <div class="sub">${on ? '已选 ' + state.cartCount + ' 件' : '购物车是空的'}</div>
+      </div>
+      <button class="btn" data-act="go-cart" ${on ? '' : 'disabled'}>选好了</button>
+    </div>`;
+}
+
+function tabBar(active) {
+  const tabs = [['menu','🍔','点餐'], ['orders','🧾','订单'], ['mine','👤','我的']];
+  return `<div class="tabbar">${tabs.map(([k, ic, label]) =>
+    `<div class="${active === k ? 'on' : ''}" data-tab="${k}"><span>${ic}</span>${label}</div>`).join('')}</div>`;
+}
+
+function navBar(title, backView, action) {
+  return `<div class="navbar">
+    <div class="back" data-back="${backView}">‹</div>
+    <div class="title">${esc(title)}</div>
+    <div class="act">${action || ''}</div>
+  </div>`;
+}
+
+/* ---------- 购物车 ---------- */
+function viewCart() {
+  if (!state.userId) return navBar('购物车', 'menu') + `<div class="empty"><div class="big">🔒</div><div>请先登录</div>
+    <button class="btn" data-tab="login">去登录</button></div>${tabBar('')}`;
+
+  if (!state.cartItems.length) {
+    return navBar('购物车', 'menu') +
+      `<div class="empty"><div class="big">🛒</div><div>购物车还是空的</div>
+       <button class="btn" data-back="menu">去点餐</button></div>${tabBar('')}`;
+  }
+
+  const rows = state.cartItems.map(it => `
+    <div class="card">
+      <div class="line">
+        <div class="thumb" style="width:62px;height:62px;font-size:28px">${esc(it.productImage || '🍔')}</div>
+        <div style="flex:1;min-width:0">
+          <div class="name" style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
+          <div class="muted" style="margin-top:6px">¥${money(it.price)}</div>
+          <div class="hint" style="margin-top:2px">小计 ¥${money(it.subtotal)}</div>
+        </div>
+        <div class="stepper">
+          <div class="op" data-cart-minus="${it.id}">−</div>
+          <div class="qty">${it.quantity}</div>
+          <div class="op plusop" data-cart-plus="${it.id}">+</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return navBar('购物车', 'menu', '<span data-act="clear-cart">清空</span>') + `
+    <div class="list">
+      ${rows}
+      <div class="card">
+        <div class="field" style="margin-top:0">
+          <label>备注</label>
+          <input id="remark" placeholder="如：不要生菜、少放冰" value="${esc(state.remark)}">
+        </div>
+      </div>
+    </div>
+    <div class="cartbar">
+      <div class="cartinfo" style="cursor:default">
+        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
+        <div class="sub">共 ${state.cartCount} 件 · 到店自取</div>
+      </div>
+      <button class="btn" data-act="checkout">去结算</button>
+    </div>`;
+}
+
+/* ---------- 订单列表 ---------- */
+function viewOrders() {
+  const filters = [['ALL','全部'],['PENDING_PAYMENT','待支付'],['ONGOING','进行中'],['DONE','已完成']];
+  const chips = filters.map(([k, label]) =>
+    `<div class="${state.orderFilter === k ? 'on' : ''}" data-filter="${k}">${label}</div>`).join('');
+
+  const visible = state.orders.filter(o => {
+    if (state.orderFilter === 'ALL') return true;
+    if (state.orderFilter === 'PENDING_PAYMENT') return o.status === 'PENDING_PAYMENT';
+    if (state.orderFilter === 'ONGOING') return o.status === 'PAID' || o.status === 'READY';
+    return o.status === 'COMPLETED' || o.status === 'CANCELLED';
+  });
+
+  const body = visible.length ? visible.map(o => {
+    const first = o.items && o.items.length ? o.items[0] : null;
+    let acts = '';
+    if (o.status === 'PENDING_PAYMENT') {
+      acts = `<div class="actions">
+        <button class="btn gray" data-cancel="${o.id}">取消订单</button>
+        <button class="btn" data-pay="${o.id}">立即支付</button></div>`;
+    } else {
+      acts = `<div class="actions"><button class="btn gray" data-detail="${o.id}">查看详情</button></div>`;
+    }
+    return `<div class="card">
+      <div class="line">
+        <span class="hint">订单号 ${esc(o.orderNo)}</span>
+        <span style="margin-left:auto;font-size:13px;font-weight:700;color:${o.status === 'CANCELLED' ? 'var(--sub)' : 'var(--primary)'}">${esc(o.statusText)}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="line">
+        <div class="thumb" style="width:54px;height:54px;font-size:24px">${esc(first ? (first.productImage || '🍔') : '🍔')}</div>
+        <div style="flex:1;min-width:0;margin-left:4px">
+          <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${esc(first ? first.productName : '（无明细）')}</div>
+          <div class="muted" style="margin-top:4px">共 ${o.itemCount} 件 · ${esc(o.pickupTypeText)}</div>
+          <div class="hint" style="margin-top:2px">${dt(o.createdAt)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="hint">实付</div>
+          <div class="price" style="font-size:15px">¥${money(o.payAmount)}</div>
+        </div>
+      </div>
+      ${o.pickupCode ? `<div class="hint" style="margin-top:8px;color:var(--primary);font-weight:700">取餐码 ${esc(o.pickupCode)}</div>` : ''}
+      ${acts}
+    </div>`;
+  }).join('') : `<div class="empty"><div class="big">🧾</div><div>还没有订单</div></div>`;
+
+  return navBar('我的订单', 'menu', '<span data-act="reload-orders">刷新</span>') +
+    `<div class="chips">${chips}</div><div class="list">${body}</div>${tabBar('orders')}`;
+}
+
+/* ---------- 订单详情 ---------- */
+function viewOrderDetail() {
+  const o = state.currentOrder;
+  if (!o) return navBar('订单详情', 'orders') + `<div class="empty">加载中…</div>${tabBar('')}`;
+  const items = (o.items || []).map(it => `
+    <div class="line" style="padding:10px 0">
+      <div class="thumb" style="width:54px;height:54px;font-size:24px">${esc(it.productImage || '🍔')}</div>
+      <div style="flex:1;min-width:0;margin-left:6px">
+        <div style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
+        <div class="muted" style="margin-top:4px">¥${money(it.price)} × ${it.quantity}</div>
+      </div>
+      <div style="font-size:14px;font-weight:700">¥${money(it.subtotal)}</div>
+    </div>`).join('');
+
+  const acts = o.status === 'PENDING_PAYMENT'
+    ? `<div class="cartbar">
+         <button class="btn gray" style="flex:1" data-cancel="${o.id}">取消订单</button>
+         <button class="btn" style="flex:2;margin-left:8px" data-pay="${o.id}">立即支付</button>
+       </div>` : '';
+
+  return navBar('订单详情', 'orders', '<span data-act="reload-order">刷新</span>') + `
+    <div class="banner">
+      <div class="st">${esc(o.statusText)}</div>
+      ${o.pickupCode ? `<div>取餐码</div><div class="code">${esc(o.pickupCode)}</div>`
+        : `<div class="sub">${o.status === 'CANCELLED' ? '订单已取消，可重新下单' : '支付后会生成取餐码'}</div>`}
+      <div class="sub">${esc(o.pickupTypeText)} · 共 ${o.itemCount} 件</div>
+    </div>
+    <div class="list">
+      <div class="card">
+        <div class="line"><b style="font-size:14px">餐品明细</b><span class="hint" style="margin-left:auto">共 ${o.itemCount} 件</span></div>
+        ${items}
+        <div class="divider"></div>
+        <div class="line"><span class="muted">合计</span>
+          <span class="price" style="margin-left:auto">¥${money(o.payAmount)}</span></div>
+      </div>
+      <div class="card">
+        <div class="line"><span class="muted" style="width:72px">订单号</span><span>${esc(o.orderNo)}</span></div>
+        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">下单时间</span><span>${dt(o.createdAt)}</span></div>
+        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">取餐方式</span><span>${esc(o.pickupTypeText)}</span></div>
+        ${o.payTime ? `<div class="line" style="margin-top:8px"><span class="muted" style="width:72px">支付时间</span><span>${dt(o.payTime)}</span></div>` : ''}
+        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">备注</span><span>${esc(o.remark || '无')}</span></div>
+      </div>
+    </div>
+    ${acts}${tabBar('orders')}`;
+}
+
+/* ---------- 收货地址 ---------- */
+function viewAddress() {
+  const f = state.addressForm;
+  const form = `
+    <div class="card">
+      <b style="font-size:14px">新增收货地址</b>
+      <div class="field"><label>收货人</label><input id="f-receiver" value="${esc(f.receiver)}" placeholder="请输入收货人"></div>
+      <div class="field"><label>手机号</label><input id="f-phone" value="${esc(f.phone)}" placeholder="请输入手机号"></div>
+      <div class="field"><label>省份</label><input id="f-province" value="${esc(f.province)}"></div>
+      <div class="field"><label>城市</label><input id="f-city" value="${esc(f.city)}"></div>
+      <div class="field"><label>区县</label><input id="f-district" value="${esc(f.district)}"></div>
+      <div class="field"><label>详细地址</label><input id="f-detail" value="${esc(f.detail)}" placeholder="街道、门牌号"></div>
+      <div class="field"><label style="width:auto;flex:1">设为默认地址</label>
+        <input type="checkbox" id="f-default" ${f.isDefault ? 'checked' : ''} style="width:18px;height:18px"></div>
+      <button class="btn" style="width:100%;margin-top:14px" data-act="save-address">保存地址</button>
+    </div>`;
+
+  const list = state.addresses.length ? state.addresses.map(a => `
+    <div class="card">
+      <div class="line">
+        <b style="font-size:15px">${esc(a.receiver)}</b>
+        <span class="muted">${esc(a.phone)}</span>
+        ${a.isDefault ? '<span style="margin-left:auto;font-size:10px;color:var(--primary);border:1px solid var(--primary);border-radius:4px;padding:0 4px">默认</span>' : ''}
+      </div>
+      <div class="muted" style="margin-top:6px">${esc(a.fullAddress)}</div>
+      <div class="actions">
+        ${a.isDefault ? '' : `<button class="btn gray" data-set-default="${a.id}">设为默认</button>`}
+        <button class="btn gray" data-del-address="${a.id}">删除</button>
+      </div>
+    </div>`).join('') : `<div class="empty" style="flex:none;padding:30px 0"><div class="big">📍</div><div>还没有收货地址</div></div>`;
+
+  return navBar('收货地址', 'mine') + `<div class="list">${form}${list}</div>`;
+}
+
+/* ---------- 我的 ---------- */
+function viewMine() {
+  const u = state.user;
+  const head = u ? `
+    <div class="profile">
+      <div class="avatar">👤</div>
+      <div>
+        <div style="font-size:17px;font-weight:700">${esc(u.nickname || u.username)}<span class="vip">WOW 会员</span></div>
+        <div style="font-size:12px;color:#FFD9DE;margin-top:6px">${esc(u.phone || '未绑定手机号')}</div>
+      </div>
+    </div>` : `
+    <div class="profile">
+      <div class="avatar" style="background:rgba(255,255,255,.2)">👤</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:700">未登录</div>
+        <div style="font-size:12px;color:#FFD9DE;margin-top:6px">登录后可下单、查看订单</div>
+      </div>
+      <button class="btn" style="background:#fff" data-tab="login">登录</button>
+    </div>`;
+
+  return head + `
+    <div class="rows">
+      <div class="r" data-tab="orders"><span class="ic">🧾</span>我的订单<span class="ar">›</span></div>
+      <div class="r" data-tab="address"><span class="ic">📍</span>收货地址<span class="ar">›</span></div>
+      <div class="r" data-tab="menu"><span class="ic">🍔</span>去点餐<span class="ar">›</span></div>
+      <div class="r" data-tab="login"><span class="ic">🔑</span>切换账号 / 注册<span class="ar">›</span></div>
+    </div>
+    <div class="pad" style="margin-top:20px">
+      <button class="btn ghost" style="width:100%" data-act="demo-login">演示账号一键登录</button>
+      ${state.userId ? '<button class="btn gray" style="width:100%;margin-top:10px" data-act="logout">退出登录</button>' : ''}
+    </div>
+    <div style="height:20px"></div>
+    ${tabBar('mine')}`;
+}
+
+/* ---------- 登录 / 注册 ---------- */
+function viewLogin() {
+  const lf = state.loginForm;
+  const isLogin = state.loginMode === 'LOGIN';
+  return navBar(isLogin ? '登录' : '注册', 'mine') + `
+    <div style="padding:40px 24px 0">
+      <div style="font-size:26px;font-weight:800;color:var(--primary)">KFC 点餐</div>
+      <div class="muted" style="margin-top:6px">鸿蒙端演示工程 · 前后端联调</div>
+      <div class="field"><label>账号</label><input id="l-username" value="${esc(lf.username)}"></div>
+      <div class="field"><label>密码</label><input id="l-password" type="password" value="${esc(lf.password)}"></div>
+      ${isLogin ? '' : `<div class="field"><label>昵称</label><input id="l-nickname" value="${esc(lf.nickname)}" placeholder="选填"></div>
+      <div class="field"><label>手机号</label><input id="l-phone" value="${esc(lf.phone)}" placeholder="选填"></div>`}
+      <button class="btn" style="width:100%;height:44px;border-radius:22px;margin-top:24px" data-act="submit-login">
+        ${isLogin ? '登 录' : '注 册'}</button>
+      <div style="text-align:center;color:var(--primary);font-size:13px;margin-top:16px;cursor:pointer" data-act="toggle-login-mode">
+        ${isLogin ? '没有账号？去注册' : '已有账号？去登录'}</div>
+      <div class="card" style="margin-top:30px;background:#FFF4E0">
+        <div class="muted">演示账号</div>
+        <div style="margin-top:4px">账号 <b>${DEMO.username}</b>　密码 <b>${DEMO.password}</b></div>
+        <div class="hint" style="margin-top:4px">数据来自后端 t_user 表的种子数据</div>
+      </div>
+    </div>`;
+}
+
+/* ============================ 事件绑定 ============================ */
+function bind() {
+  const screen = document.getElementById('screen');
+
+  // 点分类 → 右侧滚动
+  screen.querySelectorAll('[data-cat]').forEach(el => {
+    el.onclick = () => {
+      const i = Number(el.dataset.cat);
+      state.activeCategory = i;
+      const sec = screen.querySelector(`[data-sec="${i}"]`);
+      const list = document.getElementById('products');
+      if (sec && list) list.scrollTop = sec.offsetTop;
+      render();
+      // 重新渲染后把滚动位置补回去
+      const list2 = document.getElementById('products');
+      const sec2 = screen.querySelector(`[data-sec="${i}"]`);
+      if (list2 && sec2) list2.scrollTop = sec2.offsetTop;
+    };
+  });
+
+  // 右侧滚动 → 左侧高亮
+  const products = document.getElementById('products');
+  if (products) {
+    products.onscroll = () => {
+      const secs = screen.querySelectorAll('[data-sec]');
+      let idx = 0;
+      secs.forEach((s, i) => { if (s.offsetTop - products.scrollTop <= 8) idx = i; });
+      if (idx !== state.activeCategory) {
+        state.activeCategory = idx;
+        screen.querySelectorAll('[data-cat]').forEach((el, i) => el.classList.toggle('on', i === idx));
+      }
+    };
+  }
+
+  screen.querySelectorAll('[data-add]').forEach(el => {
+    el.onclick = () => {
+      const p = state.categories.flatMap(c => c.products).find(x => x.id === Number(el.dataset.add));
+      if (p) addToCart(p);
+    };
+  });
+
+  screen.querySelectorAll('[data-pickup]').forEach(el => {
+    el.onclick = () => { state.pickupType = el.dataset.pickup; render(); };
+  });
+
+  screen.querySelectorAll('[data-tab]').forEach(el => {
+    el.onclick = () => go(el.dataset.tab);
+  });
+
+  screen.querySelectorAll('[data-back]').forEach(el => {
+    el.onclick = () => go(el.dataset.back);
+  });
+
+  const remark = document.getElementById('remark');
+  if (remark) remark.oninput = () => { state.remark = remark.value; };
+
+  // 购物车加减
+  screen.querySelectorAll('[data-cart-minus]').forEach(el => {
+    el.onclick = async () => {
+      const id = Number(el.dataset.cartMinus);
+      const item = state.cartItems.find(x => x.id === id);
+      if (!item) return;
+      try {
+        if (item.quantity - 1 <= 0) await api('/cart-items/' + id + '?userId=' + state.userId, 'DELETE');
+        else await api('/cart-items/' + id, 'PUT', { quantity: item.quantity - 1 });
+        await loadCart(); render();
+      } catch (e) { toast(e.message); }
+    };
+  });
+  screen.querySelectorAll('[data-cart-plus]').forEach(el => {
+    el.onclick = async () => {
+      const id = Number(el.dataset.cartPlus);
+      const item = state.cartItems.find(x => x.id === id);
+      if (!item) return;
+      try {
+        await api('/cart-items/' + id, 'PUT', { quantity: item.quantity + 1 });
+        await loadCart(); render();
+      } catch (e) { toast(e.message); }
+    };
+  });
+
+  screen.querySelectorAll('[data-act]').forEach(el => {
+    el.onclick = () => runAct(el.dataset.act);
+  });
+
+  screen.querySelectorAll('[data-pay]').forEach(el => { el.onclick = () => payOrder(Number(el.dataset.pay)); });
+  screen.querySelectorAll('[data-cancel]').forEach(el => { el.onclick = () => cancelOrder(Number(el.dataset.cancel)); });
+  screen.querySelectorAll('[data-detail]').forEach(el => { el.onclick = () => openDetail(Number(el.dataset.detail)); });
+  screen.querySelectorAll('[data-filter]').forEach(el => {
+    el.onclick = () => { state.orderFilter = el.dataset.filter; render(); };
+  });
+  screen.querySelectorAll('[data-set-default]').forEach(el => {
+    el.onclick = () => setDefaultAddress(Number(el.dataset.setDefault));
+  });
+  screen.querySelectorAll('[data-del-address]').forEach(el => {
+    el.onclick = () => removeAddress(Number(el.dataset.delAddress));
+  });
+
+  // 表单字段（实时回填到 state，渲染时不丢）
+  const grab = (id, apply) => { const e = document.getElementById(id); if (e) e.oninput = () => apply(e.value); };
+  grab('f-receiver', v => state.addressForm.receiver = v);
+  grab('f-phone', v => state.addressForm.phone = v);
+  grab('f-province', v => state.addressForm.province = v);
+  grab('f-city', v => state.addressForm.city = v);
+  grab('f-district', v => state.addressForm.district = v);
+  grab('f-detail', v => state.addressForm.detail = v);
+  const def = document.getElementById('f-default');
+  if (def) def.onchange = () => { state.addressForm.isDefault = def.checked; };
+  grab('l-username', v => state.loginForm.username = v);
+  grab('l-password', v => state.loginForm.password = v);
+  grab('l-nickname', v => state.loginForm.nickname = v);
+  grab('l-phone', v => state.loginForm.phone = v);
+}
+
+async function runAct(act) {
+  try {
+    if (act === 'go-cart') {
+      if (state.cartCount > 0) go('cart'); else toast('先挑点吃的吧');
+    } else if (act === 'reload-menu') {
+      await loadMenu(); render();
+    } else if (act === 'reload-orders') {
+      await loadOrders(); render(); toast('已刷新');
+    } else if (act === 'reload-order') {
+      state.currentOrder = await api('/orders/' + state.currentOrder.id); render();
+    } else if (act === 'clear-cart') {
+      await api('/cart-items?userId=' + state.userId, 'DELETE');
+      await loadCart(); render(); toast('购物车已清空');
+    } else if (act === 'checkout') {
+      await checkout();
+    } else if (act === 'demo-login') {
+      const u = await login(DEMO.username, DEMO.password);
+      toast('已登录 ' + (u.nickname || u.username));
+      await loadMenu(); render();
+    } else if (act === 'logout') {
+      state.userId = 0; state.user = null; state.cartItems = []; state.cartCount = 0; state.cartAmount = 0;
+      toast('已退出登录'); render();
+    } else if (act === 'toggle-login-mode') {
+      state.loginMode = state.loginMode === 'LOGIN' ? 'REGISTER' : 'LOGIN'; render();
+    } else if (act === 'submit-login') {
+      await submitLogin();
+    } else if (act === 'save-address') {
+      await saveAddress();
+    }
+  } catch (e) { toast(e.message); }
+}
+
+async function submitLogin() {
+  const lf = state.loginForm;
+  if (!lf.username || !lf.password) { toast('账号和密码都要填'); return; }
+  if (state.loginMode === 'LOGIN') {
+    const u = await login(lf.username, lf.password);
+    toast('登录成功，欢迎 ' + (u.nickname || u.username));
+  } else {
+    const u = await api('/users/register', 'POST', {
+      username: lf.username, password: lf.password, phone: lf.phone, nickname: lf.nickname
+    });
+    state.userId = u.id; state.user = u;
+    await loadCart();
+    toast('注册成功，欢迎 ' + (u.nickname || u.username));
+  }
+  await loadMenu();
+  go('menu');
+}
+
+async function payOrder(id) {
+  try {
+    const o = await api('/orders/' + id + '/pay', 'POST', {});
+    toast('支付成功，取餐码 ' + o.pickupCode);
+    if (state.view === 'orderDetail') state.currentOrder = o;
+    await loadOrders();
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+async function cancelOrder(id) {
+  try {
+    const o = await api('/orders/' + id + '/cancel', 'POST', {});
+    toast('订单已取消');
+    if (state.view === 'orderDetail') state.currentOrder = o;
+    await loadOrders();
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+async function openDetail(id) {
+  try {
+    state.currentOrder = await api('/orders/' + id);
+    state.view = 'orderDetail';
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+async function checkout() {
+  if (!state.userId) { toast('请先登录'); go('login'); return; }
+  if (!state.cartItems.length) { toast('购物车是空的'); return; }
+  // 下单 → 支付（演示环境没接真实支付，下单后直接调支付拿取餐码）
+  const order = await api('/orders', 'POST', {
+    userId: state.userId, pickupType: 'PICKUP', remark: state.remark
+  });
+  const paid = await api('/orders/' + order.id + '/pay', 'POST', {});
+  state.remark = '';
+  await loadCart();
+  await loadOrders();
+  state.currentOrder = paid;
+  state.view = 'orderDetail';
+  render();
+  toast('支付成功，取餐码 ' + paid.pickupCode);
+}
+
+async function saveAddress() {
+  const f = state.addressForm;
+  if (!f.receiver || !f.phone || !f.detail) { toast('收货人、手机号、详细地址都要填'); return; }
+  await api('/addresses', 'POST', {
+    userId: state.userId, receiver: f.receiver, phone: f.phone,
+    province: f.province, city: f.city, district: f.district, detail: f.detail, isDefault: f.isDefault
+  });
+  state.addressForm.detail = '';
+  toast('地址已保存');
+  await loadAddresses();
+  render();
+}
+
+async function setDefaultAddress(id) {
+  const a = state.addresses.find(x => x.id === id);
+  if (!a) return;
+  try {
+    await api('/addresses/' + id, 'PUT', {
+      userId: a.userId, receiver: a.receiver, phone: a.phone,
+      province: a.province, city: a.city, district: a.district, detail: a.detail, isDefault: true
+    });
+    await loadAddresses(); render(); toast('已设为默认地址');
+  } catch (e) { toast(e.message); }
+}
+
+async function removeAddress(id) {
+  try {
+    await api('/addresses/' + id + '?userId=' + state.userId, 'DELETE');
+    await loadAddresses(); render(); toast('已删除');
+  } catch (e) { toast(e.message); }
+}
+
+/* ============================ 启动 ============================ */
+function tickClock() {
+  const d = new Date();
+  const p = n => (n < 10 ? '0' + n : '' + n);
+  document.getElementById('clock').textContent = p(d.getHours()) + ':' + p(d.getMinutes());
+}
+setInterval(tickClock, 20000);
+tickClock();
+
+(async function boot() {
+  const health = document.getElementById('health');
+  try {
+    await loadMenu();
+    health.textContent = '已连接（' + state.categories.length + ' 个分类）';
+  } catch (e) {
+    health.textContent = '连不上：' + e.message;
+  }
+  // 和其他端保持一致：默认用演示账号自动登录，省掉每次手动登录
+  try {
+    if (!state.userId) {
+      await login(DEMO.username, DEMO.password);
+      await loadMenu();
+    }
+  } catch (e) {
+    console.warn('自动登录失败', e);
+  }
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,8 +1,16 @@
 /**
- * 收货地址 数据模型
- * TODO 字段需与后端 domain/entity/Address.java 保持一致
+ * 收货地址 —— 与后端 domain/vo/AddressVO.java 字段一一对应
  */
 export interface Address {
-  id?: number;
-  // TODO 补充字段
+  id: number;
+  userId: number;
+  receiver: string;
+  phone: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  detail: string;
+  isDefault: boolean;
+  /** 后端拼好的整串地址 */
+  fullAddress: string;
 }

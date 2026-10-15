@@ -1,17 +1,27 @@
 package com.example.kfc.service;
 
+import com.example.kfc.domain.dto.CategoryDTO;
+import com.example.kfc.domain.vo.CategoryVO;
+
+import java.util.List;
+
 /**
  * 餐品分类模块 —— 业务逻辑层 Service 接口
- *
- * <p>职责：业务规则、事务边界、缓存与数据库的编排。
- * <p>依赖：只允许依赖 Repository 与其它 Service。
  */
 public interface CategoryService {
 
-    // TODO 按业务补充方法，参考：
-    // Category create(...);
-    // Category update(Long id, ...);
-    // void delete(Long id);
-    // Category getById(Long id);
-    // List<Category> list(...);
+    /** 点餐首页用：分类 + 各自分类下在售餐品，走 Redis 缓存 */
+    List<CategoryVO> listWithProducts();
+
+    CategoryVO getById(Long id);
+
+    CategoryVO create(CategoryDTO dto);
+
+    CategoryVO update(Long id, CategoryDTO dto);
+
+    /** 分类下还有餐品时拒绝删除 */
+    void delete(Long id);
+
+    /** 清掉首页分类缓存 */
+    void evictCache();
 }

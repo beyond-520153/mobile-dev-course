@@ -1,16 +1,42 @@
-import { Constants } from '../common/Constants';
+import { HttpClient } from './HttpClient';
+import { Address } from '../model/Address';
+
+/**
+ * 地址新增／修改入参，对应后端 domain/dto/AddressDTO.java
+ */
+export interface AddressBody {
+  userId: number;
+  receiver: string;
+  phone: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  detail: string;
+  isDefault: boolean;
+}
 
 /**
  * 收货地址 相关接口
- * TODO 逐个补全请求；返回类型见 model/AddressApi.ets
  */
-export class AddressApiApi {
+export class AddressApi {
 
-  private static readonly BASE: string = Constants.BASE_URL + '/api/addresses';
+  static listByUser(userId: number): Promise<Address[]> {
+    return HttpClient.get<Address[]>(`/api/addresses?userId=${userId}`);
+  }
 
-  // TODO getList(): Promise<...>
-  // TODO getById(id: number): Promise<...>
-  // TODO create(body: ...): Promise<...>
-  // TODO update(id: number, body: ...): Promise<...>
-  // TODO remove(id: number): Promise<...>
+  static detail(id: number): Promise<Address> {
+    return HttpClient.get<Address>(`/api/addresses/${id}`);
+  }
+
+  static create(body: AddressBody): Promise<Address> {
+    return HttpClient.post<Address>('/api/addresses', body);
+  }
+
+  static update(id: number, body: AddressBody): Promise<Address> {
+    return HttpClient.put<Address>(`/api/addresses/${id}`, body);
+  }
+
+  static remove(id: number, userId: number): Promise<boolean> {
+    return HttpClient.remove(`/api/addresses/${id}?userId=${userId}`);
+  }
 }

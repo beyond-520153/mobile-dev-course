@@ -1,5 +1,7 @@
 server:
-  port: 8080
+  # 默认 8080 在开发机上被一个常驻程序占用了（监听 0.0.0.0:8080，返回 GoAhead 的 404），
+  # 所以这里改用 8090。想换回 8080 就改这一行 + 前端 Constants.BASE_URL。
+  port: 8090
 
 spring:
   application:
@@ -19,8 +21,9 @@ spring:
 
   jpa:
     hibernate:
-      # 开发期用 update 让实体自动建表；表结构定稿后改成 validate 并交给 SQL 脚本管理
-      ddl-auto: update
+      # 表结构由 resources/db/migration/V1__init_schema.sql 管理，不让 Hibernate 自动改表。
+      # 改了实体字段记得同步改脚本，两边必须一致。
+      ddl-auto: none
     open-in-view: false
     show-sql: true
     properties:

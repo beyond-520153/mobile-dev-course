@@ -1,17 +1,23 @@
 package com.example.kfc.service;
 
+import com.example.kfc.domain.vo.OrderItemVO;
+
+import java.util.Collection;
+import java.util.List;
+
 /**
  * 订单明细模块 —— 业务逻辑层 Service 接口
  *
- * <p>职责：业务规则、事务边界、缓存与数据库的编排。
- * <p>依赖：只允许依赖 Repository 与其它 Service。
+ * <p>订单明细在领域上属于「订单聚合」，因此下单时的写入由 OrderService 统一完成，
+ * 本接口只提供对外查询与单条维护能力。
  */
 public interface OrderItemService {
 
-    // TODO 按业务补充方法，参考：
-    // OrderItem create(...);
-    // OrderItem update(Long id, ...);
-    // void delete(Long id);
-    // OrderItem getById(Long id);
-    // List<OrderItem> list(...);
+    List<OrderItemVO> listByOrder(Long orderId);
+
+    List<OrderItemVO> listByOrders(Collection<Long> orderIds);
+
+    OrderItemVO getById(Long id);
+
+    void delete(Long id);
 }

@@ -1,16 +1,63 @@
-import { Constants } from '../common/Constants';
+import { HttpClient } from './HttpClient';
+import { User } from '../model/User';
+
+/**
+ * 修改资料入参，对应后端 domain/dto/UserUpdateDTO.java
+ */
+export interface UserUpdateBody {
+  phone?: string;
+  nickname?: string;
+  avatar?: string;
+}
 
 /**
  * 用户 相关接口
- * TODO 逐个补全请求；返回类型见 model/UserApi.ets
  */
-export class UserApiApi {
+export class UserApi {
 
-  private static readonly BASE: string = Constants.BASE_URL + '/api/users';
+  /** 登录：成功后返回的 User 里带 token */
+  static login(username: string, password: string): Promise<User> {
+    const body: LoginBody = { username: username, password: password };
+    return HttpClient.post<User>('/api/users/login', body);
+  }
 
-  // TODO getList(): Promise<...>
-  // TODO getById(id: number): Promise<...>
-  // TODO create(body: ...): Promise<...>
-  // TODO update(id: number, body: ...): Promise<...>
-  // TODO remove(id: number): Promise<...>
+  static register(username: string, password: string, phone: string, nickname: string): Promise<User> {
+    const body: RegisterBody = {
+      username: username,
+      password: password,
+      phone: phone,
+      nickname: nickname
+    };
+    return HttpClient.post<User>('/api/users/register', body);
+  }
+
+  static detail(id: number): Promise<User> {
+    return HttpClient.get<User>(`/api/users/${id}`);
+  }
+
+  static list(): Promise<User[]> {
+    return HttpClient.get<User[]>('/api/users');
+  }
+
+  static update(id: number, body: UserUpdateBody): Promise<User> {
+    return HttpClient.put<User>(`/api/users/${id}`, body);
+  }
+
+  static remove(id: number): Promise<boolean> {
+    return HttpClient.remove(`/api/users/${id}`);
+  }
+}
+
+/** 登录请求体，对应后端 domain/dto/LoginDTO.java */
+interface LoginBody {
+  username: string;
+  password: string;
+}
+
+/** 注册请求体，对应后端 domain/dto/UserRegisterDTO.java */
+interface RegisterBody {
+  username: string;
+  password: string;
+  phone: string;
+  nickname: string;
 }

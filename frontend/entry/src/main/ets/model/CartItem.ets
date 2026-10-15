@@ -1,8 +1,16 @@
 /**
- * 购物车项 数据模型
- * TODO 字段需与后端 domain/entity/CartItem.java 保持一致
+ * 购物车条目 —— 与后端 domain/vo/CartItemVO.java 字段一一对应
  */
 export interface CartItem {
-  id?: number;
-  // TODO 补充字段
+  /** 购物车条目主键，改数量/删除用它 */
+  id: number;
+  userId: number;
+  productId: number;
+  productName: string;
+  productImage?: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+  stock?: number;
+  productStatus?: number;
 }
