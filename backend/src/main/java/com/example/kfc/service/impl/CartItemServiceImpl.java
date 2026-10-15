@@ -150,7 +150,9 @@ public class CartItemServiceImpl implements CartItemService {
 
     @Override
     public int countByUser(Long userId) {
-        return (int) cartItemRepository.countByUserId(userId);
+        // 按份数累加，不用行数：口径要和订单的 itemCount 一致，
+        // 否则「已选 N 件」和下单后的「共 M 件」会对不上。
+        return (int) cartItemRepository.sumQuantityByUserId(userId);
     }
 
     @Override
