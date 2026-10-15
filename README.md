@@ -180,7 +180,7 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 | 地址默认唯一：新增默认地址自动清掉旧的默认 | ✅ |
 | 不存在路径返回 `code=404` 而不是 5000 | ✅ |
 | Redis 缓存与 TTL 正确（cart hash TTL=604800 等） | ✅ |
-| 前端 `hvigor assembleHap` 构建 | ✅ BUILD SUCCESSFUL |
+| 前端 `hvigor assembleHap` 构建 | ✅ BUILD SUCCESSFUL（10 条警告，均为 "Function may throw exceptions" 提示，无 deprecated） |
 | **真机核验**：Edge headless 打开联调页，4 分类/15 餐品、接口全 200、0 JS 异常 | ✅ |
 | **浏览器内点完整链路**：加购 → 购物车改数量 → 去结算 → 取餐码 3744 | ✅ |
 

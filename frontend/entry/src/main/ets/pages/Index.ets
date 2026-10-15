@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { Theme, Constants } from '../common/Constants';
 import { Category } from '../model/Category';
 import { Product } from '../model/Product';
@@ -148,7 +147,7 @@ struct Index {
     const uid = CartViewModel.currentUserId();
     if (uid <= 0) {
       this.toast('请先登录');
-      router.pushUrl({ url: 'pages/LoginPage' });
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/LoginPage' });
       return;
     }
     try {
@@ -272,7 +271,7 @@ struct Index {
       .margin({ left: 10 })
       .alignItems(HorizontalAlign.Start)
       .onClick(() => {
-        router.pushUrl({ url: 'pages/CartPage' });
+        this.getUIContext().getRouter().pushUrl({ url: 'pages/CartPage' });
       })
 
       Text('选好了')
@@ -286,7 +285,7 @@ struct Index {
         .backgroundColor(this.cartCount > 0 ? Theme.PRIMARY : '#D0D0D0')
         .onClick(() => {
           if (this.cartCount > 0) {
-            router.pushUrl({ url: 'pages/CartPage' });
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/CartPage' });
           } else {
             this.toast('先挑点吃的吧');
           }
