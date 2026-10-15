@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: kfc-order
+  profiles:
+    active: dev
+
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/kfc
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      # 开发期用 update 让实体自动建表；表结构定稿后改成 validate 并交给 SQL 脚本管理
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      # password:            # 本地 Redis 未设密码，需要时取消注释
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+logging:
+  level:
+    com.example.kfc: debug

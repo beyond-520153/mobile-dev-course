@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "KFC ordering main module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "KFC ordering"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "KFC Order"
+    }
+  ]
+}

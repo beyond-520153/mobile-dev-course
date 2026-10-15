@@ -1,0 +1,19 @@
+# 仓库根目录 .gitignore
+# 注意：backend/ 和 frontend/ 各自还有一份 .gitignore 负责各自的技术栈产物，
+#      这里只放仓库级别的 IDE / 系统文件。
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+~$*
