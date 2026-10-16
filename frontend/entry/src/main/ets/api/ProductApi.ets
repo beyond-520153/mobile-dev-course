@@ -20,6 +20,7 @@ export interface ProductBody {
   name: string;
   description?: string;
   price: number;
+  originPrice?: number;
   image?: string;
   stock?: number;
   sortOrder?: number;
@@ -50,6 +51,18 @@ export class ProductApi {
 
   static removeCategory(id: number): Promise<boolean> {
     return HttpClient.remove(`/api/categories/${id}`);
+  }
+
+  /**
+   * 搜索餐品
+   *
+   * 后端按「餐品名 + 描述 + 所属分类名 + 拼音首字母」四路匹配，
+   * 例如「咖啡」能命中整个咖啡分类、「YWJ」能命中原味鸡系列。
+   *
+   * @param keyword 关键词，必填
+   */
+  static search(keyword: string): Promise<Product[]> {
+    return HttpClient.get<Product[]>(`/api/products/search?keyword=${encodeURIComponent(keyword)}`);
   }
 
   /**

@@ -27,6 +27,9 @@ public class ProductServiceImpl implements ProductService {
     /** 1 上架 */
     private static final Integer ON_SHELF = 1;
 
+    /** 搜索关键词最长 30 字，超出直接截断（入参要进 LIKE，过长既无意义又白扫表） */
+    private static final int MAX_KEYWORD_LENGTH = 30;
+
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final RedisJsonCache cache;
@@ -43,8 +46,7 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductVO> list(Long categoryId, String keyword) {
         List<Product> rows;
         if (keyword != null && !keyword.isBlank()) {
-            rows = productRepository
-                    .findByStatusAndNameContainingIgnoreCaseOrderBySortOrderAscIdAsc(ON_SHELF, keyword.trim());
+            rows = searchEntities(keyword);
             if (categoryId != null) {
                 rows = rows.stream()
                         .filter(p -> categoryId.equals(p.getCategoryId()))
@@ -56,6 +58,28 @@ public class ProductServiceImpl implements ProductService {
             rows = productRepository.findByStatusOrderBySortOrderAscIdAsc(ON_SHELF);
         }
         return rows.stream().map(ProductVO::from).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProductVO> search(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return list(null, null);
+        }
+        return searchEntities(keyword).stream().map(ProductVO::from).collect(Collectors.toList());
+    }
+
+    /**
+     * 关键词裁剪后交给仓储层做四路匹配。
+     *
+     * <p>只 trim 首尾、不处理中间空格：「香辣 鸡翅」这种输入命中 0 条是合理的，
+     * 让用户直观看到没结果，比替他猜意图更省事。
+     */
+    private List<Product> searchEntities(String keyword) {
+        String kw = keyword.trim();
+        if (kw.length() > MAX_KEYWORD_LENGTH) {
+            kw = kw.substring(0, MAX_KEYWORD_LENGTH);
+        }
+        return productRepository.search(ON_SHELF, kw);
     }
 
     @Override

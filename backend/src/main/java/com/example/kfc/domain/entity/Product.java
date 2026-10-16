@@ -54,6 +54,17 @@ public class Product {
     @Column(length = 255)
     private String image;
 
+    /**
+     * 名称的拼音首字母，如「吮指原味鸡」→ {@code szywj}，供搜索用。
+     *
+     * <p>不做成实时转换：这一列由 db/migration/V3__product_search.sql 预计算好，
+     * 搜索时只走一次 LIKE，省掉每个请求都跑一遍拼音转换的开销。
+     * 换了菜单数据要重跑那份脚本，否则拼音首字母会和新菜单对不上。
+     * 只取名称的首字母，不含分类名 —— 分类名的中文匹配由 SQL 里的 join 负责。
+     */
+    @Column(name = "pinyin_initials", length = 200)
+    private String pinyinInitials;
+
     /** 库存，0 表示售罄 */
     @Column(nullable = false)
     private Integer stock;

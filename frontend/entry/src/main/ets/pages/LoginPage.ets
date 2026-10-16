@@ -158,7 +158,7 @@ struct LoginPage {
             .fontSize(13)
             .fontColor(Theme.TEXT)
             .margin({ top: 4 })
-          Text('点「我的 → 演示账号一键登录」也能直接进去')
+          Text('点「我的 - 演示账号一键登录」也能直接进去')
             .fontSize(11)
             .fontColor(Theme.TEXT_HINT)
             .margin({ top: 4 })

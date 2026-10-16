@@ -3,6 +3,7 @@ import { User } from '../model/User';
 import { UserApi } from '../api/UserApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
 import { BottomTabBar } from '../components/BottomTabBar';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 我的页
@@ -68,9 +69,11 @@ struct MinePage {
   @Builder
   entryRow(icon: string, label: string, hint: string, action: () => void) {
     Row() {
-      Text(icon)
-        .fontSize(18)
-        .width(28)
+      Column() {
+        VectorIcon({ path: icon, iconSize: 19, color: Theme.TEXT_SUB })
+      }
+      .width(28)
+      .justifyContent(FlexAlign.Center)
 
       Text(label)
         .fontSize(14)
@@ -99,13 +102,14 @@ struct MinePage {
       Column() {
         if (this.user !== null) {
           Row() {
-            Text('👤')
-              .fontSize(26)
-              .width(56)
-              .height(56)
-              .textAlign(TextAlign.Center)
-              .borderRadius(28)
-              .backgroundColor(Color.White)
+            Column() {
+              VectorIcon({ path: Icons.PERSON, iconSize: 30, color: Theme.PRIMARY })
+            }
+            .width(56)
+            .height(56)
+            .justifyContent(FlexAlign.Center)
+            .borderRadius(28)
+            .backgroundColor(Color.White)
 
             Column() {
               Row() {
@@ -137,13 +141,14 @@ struct MinePage {
           .alignItems(VerticalAlign.Center)
         } else {
           Row() {
-            Text('👤')
-              .fontSize(26)
-              .width(56)
-              .height(56)
-              .textAlign(TextAlign.Center)
-              .borderRadius(28)
-              .backgroundColor('#FFFFFF33')
+            Column() {
+              VectorIcon({ path: Icons.PERSON, iconSize: 30, color: '#FFFFFF' })
+            }
+            .width(56)
+            .height(56)
+            .justifyContent(FlexAlign.Center)
+            .borderRadius(28)
+            .backgroundColor('#FFFFFF33')
 
             Column() {
               Text('未登录')
@@ -183,22 +188,22 @@ struct MinePage {
       .backgroundColor(Theme.PRIMARY)
 
       Column() {
-        this.entryRow('🧾', '我的订单', '全部订单', () => {
+        this.entryRow(Icons.RECEIPT, '我的订单', '全部订单', () => {
           this.getUIContext().getRouter().pushUrl({ url: 'pages/OrderListPage' });
         })
         Divider().color(Theme.DIVIDER).margin({ left: 40 })
 
-        this.entryRow('📍', '收货地址', '管理地址', () => {
+        this.entryRow(Icons.LOCATION, '收货地址', '管理地址', () => {
           this.getUIContext().getRouter().pushUrl({ url: 'pages/AddressPage' });
         })
         Divider().color(Theme.DIVIDER).margin({ left: 40 })
 
-        this.entryRow('🍔', '去点餐', `${this.cartCount} 件在购物车`, () => {
+        this.entryRow(Icons.BURGER, '去点餐', `${this.cartCount} 件在购物车`, () => {
           this.getUIContext().getRouter().replaceUrl({ url: 'pages/Index' });
         })
         Divider().color(Theme.DIVIDER).margin({ left: 40 })
 
-        this.entryRow('🔑', '切换账号 / 注册', '', () => {
+        this.entryRow(Icons.KEY, '切换账号 / 注册', '', () => {
           this.getUIContext().getRouter().pushUrl({ url: 'pages/LoginPage' });
         })
       }

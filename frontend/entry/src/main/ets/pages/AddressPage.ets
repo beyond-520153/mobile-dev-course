@@ -2,6 +2,7 @@ import { Theme } from '../common/Constants';
 import { Address } from '../model/Address';
 import { AddressApi, AddressBody } from '../api/AddressApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 收货地址页
@@ -332,7 +333,7 @@ struct AddressPage {
                 .margin({ top: 20 })
             } else if (this.addresses.length === 0) {
               Column() {
-                Text('📍').fontSize(44)
+                VectorIcon({ path: Icons.LOCATION, iconSize: 48, color: '#D8D8D8' })
                 Text('还没有收货地址')
                   .fontSize(13)
                   .fontColor(Theme.TEXT_SUB)

@@ -14,9 +14,19 @@ public interface ProductService {
      * 查询餐品列表
      *
      * @param categoryId 分类筛选，可为 null
-     * @param keyword    名称模糊搜索，可为 null
+     * @param keyword    关键词，可为 null。非空时走 {@link #search(String)} 的四路匹配
      */
     List<ProductVO> list(Long categoryId, String keyword);
+
+    /**
+     * 关键词搜索
+     *
+     * <p>匹配范围：餐品名 / 餐品描述 / 所属分类名 / 名称拼音首字母。
+     * 例：「鸡腿堡」命中名称、「香辣」命中描述、「咖啡」命中分类、{@code YWJ} 命中拼音。
+     *
+     * @param keyword 关键词，空白表示不筛选（返回全部上架餐品）
+     */
+    List<ProductVO> search(String keyword);
 
     /** 详情，走 Redis 缓存（10 分钟） */
     ProductVO getById(Long id);

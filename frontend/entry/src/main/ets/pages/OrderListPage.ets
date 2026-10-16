@@ -6,6 +6,7 @@ import { OrderApi } from '../api/OrderApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { ProductThumb } from '../components/ProductThumb';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 订单列表页
@@ -302,7 +303,7 @@ struct OrderListPage {
         .justifyContent(FlexAlign.Center)
       } else if (this.visibleOrders().length === 0) {
         Column() {
-          Text('🧾').fontSize(44)
+          VectorIcon({ path: Icons.RECEIPT, iconSize: 48, color: '#D8D8D8' })
           Text('还没有订单')
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)

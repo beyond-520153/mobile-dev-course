@@ -6,6 +6,7 @@ import { CartApi } from '../api/CartApi';
 import { OrderApi } from '../api/OrderApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
 import { ProductThumb } from '../components/ProductThumb';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 购物车页
@@ -206,7 +207,7 @@ struct CartPage {
         .justifyContent(FlexAlign.Center)
       } else if (this.items.length === 0) {
         Column() {
-          Text('🛒').fontSize(44)
+          VectorIcon({ path: Icons.CART, iconSize: 48, color: '#D8D8D8' })
           Text('购物车还是空的')
             .fontSize(13)
             .fontColor(Theme.TEXT_SUB)

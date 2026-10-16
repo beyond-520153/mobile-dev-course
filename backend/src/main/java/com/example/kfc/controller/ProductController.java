@@ -34,12 +34,26 @@ public class ProductController {
      * 餐品列表
      *
      * @param categoryId 可选，按分类筛选
-     * @param keyword    可选，按名称模糊搜索
+     * @param keyword    可选，关键词（名称 / 描述 / 分类名 / 拼音首字母）
      */
     @GetMapping
     public Result<List<ProductVO>> list(@RequestParam(required = false) Long categoryId,
                                        @RequestParam(required = false) String keyword) {
         return Result.success(productService.list(categoryId, keyword));
+    }
+
+    /**
+     * 搜索餐品
+     *
+     * <p>与 {@code GET /api/products?keyword=} 等价，单独给搜索框一个语义明确的端点。
+     * 路径 {@code /search} 是字面量，Spring 的匹配优先级高于 {@link #getById(Long)} 的
+     * 模板 {@code /{id}}，两者不会打架。
+     *
+     * @param keyword 可选，如「鸡腿堡」「咖啡」「YWJ」；空白表示返回全部上架餐品
+     */
+    @GetMapping("/search")
+    public Result<List<ProductVO>> search(@RequestParam(required = false) String keyword) {
+        return Result.success(productService.search(keyword));
     }
 
     @GetMapping("/{id}")

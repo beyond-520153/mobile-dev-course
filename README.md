@@ -185,7 +185,7 @@ http://localhost:8090/preview.html
 | 模块 | 接口 |
 |---|---|
 | 分类 | `GET /categories`（含餐品）、`GET/POST/PUT/DELETE /categories[/{id}]` |
-| 餐品 | `GET /products?categoryId&keyword`、`GET /products/{id}`、`POST/PUT/DELETE /products[/{id}]` |
+| 餐品 | `GET /products?categoryId&keyword`、`GET /products/search?keyword`、`GET /products/{id}`、`POST/PUT/DELETE /products[/{id}]` |
 | 购物车 | `GET /cart-items?userId`、`GET /cart-items/summary?userId`、`POST /cart-items`、`PUT /cart-items/{id}`、`DELETE /cart-items?userId` |
 | 订单 | `GET /orders?userId`、`GET /orders/{id}`、`POST /orders`、`POST /orders/{id}/pay`、`POST /orders/{id}/cancel`、`DELETE /orders/{id}` |
 | 订单明细 | `GET /order-items?orderId` |
@@ -195,9 +195,59 @@ http://localhost:8090/preview.html
 `Result` 结构：`{ code, message, data }`，业务成功 `code=200`。
 HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 接口或资源不存在 / 500 业务规则不通过 / 5000 系统异常）。
 
+### 搜索接口 `GET /products/search?keyword=`
+
+四路匹配，命中任一即返回（都只搜上架餐品）：
+
+| 匹配字段 | 例子 |
+|---|---|
+| 餐品名 | 搜「鸡腿堡」→ 新奥尔良烤鸡腿堡 |
+| 餐品描述 | 搜「香辣」→ 描述里带香辣的餐品 |
+| 所属分类名 | 搜「咖啡」→ 金奖豆K咖啡分类下全部 7 个产品 |
+| 拼音首字母 | 搜「YWJ」→ 吮指原味鸡全系列（大小写不敏感） |
+
+拼音首字母是**离线预计算**存在 `t_product.pinyin_initials` 列里的（由 `db/migration/V3__product_search.sql` 写入），
+Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
+代价是以后换菜单要重跑一次导入脚本重新生成该列。
+
 ---
 
-## 八、已实测通过的用例
+## 八、取餐方式入口页与搜索框
+
+### 页面流
+
+```
+启动 → pages/EntryPage（取餐方式入口页）
+         ├─ 点「外送到家」→ pages/Index（点餐页，顶部标签显示「外送到家」）
+         └─ 点「到店自取」→ pages/Index（同一个页面，顶部标签显示「到店自取」）
+```
+
+两个入口进的是**同一个点餐页**，界面结构完全一致，唯一差别是顶部的取餐方式标签文案。
+选择结果通过 `AppStorage` 的 `pickupType` 键在两端共享（`EntryPage` 写，`Index` 读）。
+
+> 按需求，外送 / 自取**只做入口外观区分，不参与下单业务**——订单的 `pickupType` 仍写死 `PICKUP`，
+> 后端 CRUD 逻辑一行没动。
+
+### 点餐页顶部
+
+原来那个「到店自取 / 外送到家」胶囊切换，已换成**白色圆角搜索框**：
+
+- 左侧矢量放大镜图标，右侧输入后出现清空按钮
+- 输入 300ms 防抖后请求后端；左栏分类栏收起，右侧整栏显示结果 + 「共 N 个结果」
+- 清空关键词恢复原来的分类浏览态（左侧分类栏 + 右侧分组列表）
+- 无结果时给空态提示，并建议换个词（如「堡」「咖啡」「YWJ」）
+
+### 图标
+
+两端已**彻底移除 emoji**，全部换成矢量图形：
+
+- 鸿蒙端：新增 `components/VectorIcon.ets`，用 `Shape + Path` 描边图标（路径取自 Material Symbols，Apache-2.0）。
+  底部 tab（汉堡/小票/人像）、购物车、放大镜、空态、头像、我的页入口、缩略图兜底全部换掉。
+- 预览页：`preview.html` 里内置一套内联 SVG（`ICON` 常量），同上。
+
+---
+
+## 九、已实测通过的用例
 
 | 用例 | 结果 |
 |---|---|
@@ -214,9 +264,14 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 | 地址默认唯一：新增默认地址自动清掉旧的默认 | ✅ |
 | 不存在路径返回 `code=404` 而不是 5000 | ✅ |
 | Redis 缓存与 TTL 正确（cart hash TTL=604800 等） | ✅ |
-| 前端 `hvigor assembleHap` 构建 | ✅ BUILD SUCCESSFUL（10 条警告，均为 "Function may throw exceptions" 提示，无 deprecated） |
-| **真机核验**：Edge headless 打开联调页，4 分类/15 餐品、接口全 200、0 JS 异常 | ✅ |
+| 前端 `hvigor assembleHap` 构建 | ✅ BUILD SUCCESSFUL（11 条警告，均为 "Function may throw exceptions" 提示，无 deprecated、无 ERROR） |
+| **浏览器核验**：Edge headless 打开联调页，13 分类/80 餐品/80 图全加载、0 控制台错误 | ✅ |
 | **浏览器内点完整链路**：加购 → 购物车改数量 → 去结算 → 取餐码 3744 | ✅ |
+| **入口页**：两张卡（外送到家 / 到店自取）、hero 图加载、图标为矢量 | ✅ |
+| **两个入口进同一页**：点外送 → 顶栏标签「外送到家」；点自取 → 「到店自取」，其余完全一致 | ✅ |
+| **搜索三字段**：搜「咖啡」命中 7 条（分类名匹配）、搜「YWJ」命中 4 条（拼音首字母） | ✅ |
+| **搜索态交互**：左栏收起 → 结果 + 「共 N 个结果」；无结果给空态；清空恢复分类浏览 | ✅ |
+| **全端无 emoji**：鸿蒙 10 个 .ets + 预览页页面文本，emoji 检出 0 | ✅ |
 
 ### 前后端字段级一致性审计（脚本核对，全部通过）
 
@@ -231,9 +286,17 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 - **页面路由**：`main_pages.json` 注册 7 页，代码里 7 个跳转目标全部命中；7 个页面都有 `@Entry`。
 - **AppStorage 键名**：`userId`/`cartCount`/`cartAmount` 与 `CartViewModel` 常量逐字一致。
 
+本轮（入口页 + 搜索）复跑了同一套审计，另加 4 项：
+
+- **新增端点**：`GET /api/products/search` 前后端路径逐字一致。
+- **`ProductVO` ↔ `model/Product.ets`**：10 个字段（含新加的 `originPrice`）**完全相同**，
+  且 `ProductVO.from()` 对每个字段都调了 setter——漏赋值会让前端恒为默认值且不报错，所以这项单独查。
+- **路由注册**：代码里 8 个跳转目标全部命中 `main_pages.json`；`EntryAbility` 已改为加载 `pages/EntryPage`。
+- **AppStorage 键**：`pickupType` 只在 `EntryPage`（写）与 `Index`（读）出现，键名一致。
+
 ---
 
-## 九、注意事项 / 踩过的坑
+## 十、注意事项 / 踩过的坑
 
 1. **工程路径必须纯英文。** hvigor 拒绝构建含中文路径的工程，
    实测报 `Invalid project path`。目录已从「移动互联开发课设」改名为 `mobile-dev-course`，
@@ -252,7 +315,7 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 
 ---
 
-## 十、已知问题（不阻塞 MVP，已记录待处理）
+## 十一、已知问题（不阻塞 MVP，已记录待处理）
 
 1. **没有登录态鉴权。** 所有接口的 `userId` 都靠前端在 URL 上带过来，服务端不做校验，
    所以现在还谈不上越权防护。等接入 token 拦截器时统一下掉。
@@ -268,7 +331,7 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 
 ---
 
-## 十一、下一步
+## 十二、下一步
 
 - [ ] 前端在真机/模拟器实跑，替换 emoji 占位图为真实餐品图
 - [ ] 登录态改为 token 拦截器统一注入（现为首页自动登录演示账号）

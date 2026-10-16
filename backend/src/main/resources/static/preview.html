@@ -126,7 +126,6 @@
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-size:11px;color:var(--sub);gap:2px;cursor:pointer;
   }
-  .tabbar div span{font-size:20px}
   .tabbar div.on{color:var(--primary)}
 
   /* 列表卡片 */
@@ -169,6 +168,79 @@
   .rows .r .ic{width:28px;font-size:18px}
   .rows .r .ar{margin-left:auto;color:var(--hint)}
   .pad{padding:0 12px}
+
+  /* 入口页 —— 仿肯德基小程序开屏：整屏肯德基红 + 品牌徽标 + 官方菜品图 + 两张白色入口卡 */
+  .entry{
+    flex:1;display:flex;flex-direction:column;padding:24px 18px 14px;overflow-y:auto;scrollbar-width:none;
+    background:linear-gradient(178deg,#E4002B 0%,#CB0025 48%,#A3001C 100%);
+  }
+  .entry::-webkit-scrollbar{display:none}
+  .entry .brand{text-align:center;flex:none}
+  .entry .logo{
+    width:62px;height:62px;margin:0 auto;border-radius:19px;background:#fff;color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;
+    letter-spacing:.5px;box-shadow:0 8px 18px rgba(0,0,0,.22);
+  }
+  .entry .shop{color:#fff;font-size:14px;font-weight:700;margin-top:14px}
+  .entry .hours{color:#FFD9DE;font-size:11px;margin-top:5px}
+  .entry .hero{
+    margin-top:18px;border-radius:18px;overflow:hidden;position:relative;background:#fff;flex:none;
+    box-shadow:0 12px 26px rgba(0,0,0,.24);
+  }
+  .entry .hero img{width:100%;height:166px;object-fit:cover;object-position:left center;display:block}
+  .entry .hero .cap{
+    position:absolute;left:0;right:0;bottom:0;padding:22px 14px 11px;color:#fff;
+    background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.66) 100%);
+  }
+  .entry .hero .cap .k{font-size:10px;opacity:.9}
+  .entry .hero .cap .n{font-size:15px;font-weight:800;margin-top:3px}
+  .entry .acts{margin-top:16px;display:flex;flex-direction:column;gap:12px;flex:none}
+  .entry .act{
+    background:#fff;border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;
+    cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.16);transition:transform .12s;
+  }
+  .entry .act:active{transform:scale(.98)}
+  .entry .act .tile{
+    width:44px;height:44px;border-radius:13px;background:#FFF0F2;color:var(--primary);flex:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .entry .act .t1{font-size:16px;font-weight:800}
+  .entry .act .t2{font-size:11px;color:var(--sub);margin-top:5px}
+  .entry .act .chev{margin-left:auto;color:var(--hint);font-size:20px;line-height:1}
+  .entry .foot{
+    margin-top:auto;padding-top:16px;text-align:center;color:rgba(255,255,255,.74);
+    font-size:11px;flex:none;line-height:1.8;
+  }
+
+  /* 顶部搜索框 —— 取代原来的「到店自取 / 外送到家」胶囊 */
+  .searchbar{
+    display:flex;align-items:center;gap:8px;margin-top:10px;height:36px;padding:0 12px;
+    background:#fff;border-radius:18px;
+  }
+  .searchbar .mag{color:var(--hint);display:flex;flex:none}
+  .searchbar input{
+    flex:1;min-width:0;height:100%;border:none;background:transparent;outline:none;
+    font-size:13px;font-family:inherit;color:var(--text);
+  }
+  .searchbar input::placeholder{color:var(--hint)}
+  .searchbar .clear{
+    width:18px;height:18px;border-radius:50%;background:#DCDCDC;color:#fff;font-size:13px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;line-height:1;
+  }
+  .searchbar .clear.hide{display:none}
+
+  /* 搜索结果提示条 */
+  .result-bar{
+    display:flex;align-items:center;padding:9px 12px;background:#fff;flex:none;
+    border-bottom:1px solid var(--line);font-size:12px;color:var(--sub);
+  }
+  .result-bar b{color:var(--primary);margin:0 2px}
+
+  /* 矢量图标（内联 SVG，stroke=currentColor 直接继承文字色，不再用 emoji 字体） */
+  .ic-svg{display:flex;align-items:center;justify-content:center}
+  .tabbar div .ic-svg{height:22px}
+  .rows .r .ic{width:28px;display:flex;align-items:center;color:var(--sub)}
+  .empty .big{display:flex;align-items:center;justify-content:center;color:var(--hint)}
 </style>
 </head>
 <body>
@@ -193,12 +265,19 @@
 <script>
 /* ============================ 基础设施 ============================ */
 const state = {
-  view: 'menu',            // menu | cart | orders | orderDetail | address | mine | login
+  // entry 是最外层的入口页（外送 / 到店自取），两个入口都进 menu：界面完全一样
+  view: 'entry',           // entry | menu | cart | orders | orderDetail | address | mine | login
   userId: 0,
   user: null,
+  /** 取餐方式，由入口页两张卡决定；只影响点餐页顶部标签，不参与下单（订单仍写死 PICKUP） */
   pickupType: 'PICKUP',
   categories: [],
   activeCategory: 0,
+  keyword: '',             // 搜索框当前内容
+  searchResults: [],       // /api/products/search 的结果
+  searching: false,
+  /** 整页 innerHTML 重绘后要不要把焦点还给搜索框（否则打字打一半会掉焦点） */
+  searchFocus: false,
   cartItems: [],
   cartCount: 0,
   cartAmount: 0,
@@ -255,9 +334,72 @@ function dt(iso) {
 const esc = s => String(s === undefined || s === null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+/* ============================ 矢量图标 ============================
+   全部内联 SVG，stroke 用 currentColor：外层给 color，图标自己跟着变色，
+   既能跟主题走（tab 高亮红 / 未选灰），也不必依赖 emoji 字体在某些环境能否渲染。
+   尺寸写死在 svg 上，需要更大的场合（空态）另给一份大号。 */
+const ICON = {
+  scooter: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="17.4" r="2.6"/><circle cx="18.4" cy="17.4" r="2.6"/><path d="M8.2 17.4h7.6"/><path d="M18.4 17.4l-1.8-8.2h-3.3"/><path d="M12.4 9.2h3.9"/><rect x="2.2" y="6.4" width="5.2" height="5.8" rx="1.1"/><path d="M7.4 12.2v2.4"/></svg>',
+  store: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8V20h15.6V9.8"/><path d="M2.6 9.8l1.7-5.6h15.4l1.7 5.6z"/><path d="M9.6 20v-5.4h4.8V20"/></svg>',
+  search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.6" cy="10.6" r="6.4"/><path d="M15.3 15.3l5.1 5.1"/></svg>',
+  cart: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
+  cartBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
+  burger: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.2a8 8 0 0 1 16 0z"/><path d="M4 12.4h16"/><path d="M5.2 15h13.6v1.7a2.6 2.6 0 0 1-2.6 2.6H7.8A2.6 2.6 0 0 1 5.2 16.7z"/></svg>',
+  receipt: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.4h12v17.2l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.4h6M9 12h6"/></svg>',
+  receiptBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.4h12v17.2l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.4h6M9 12h6"/></svg>',
+  person: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.5"/><path d="M5.2 20c0-3.7 3-6.3 6.8-6.3s6.8 2.6 6.8 6.3"/></svg>',
+  pin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.4s6.6-6.3 6.6-10.8A6.6 6.6 0 0 0 5.4 10.6C5.4 15.1 12 21.4 12 21.4z"/><circle cx="12" cy="10.4" r="2.4"/></svg>',
+  pinBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.4s6.6-6.3 6.6-10.8A6.6 6.6 0 0 0 5.4 10.6C5.4 15.1 12 21.4 12 21.4z"/><circle cx="12" cy="10.4" r="2.4"/></svg>',
+  key: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.4" cy="12" r="3.6"/><path d="M12 12h9"/><path d="M18 12v3.2M15 12v2.4"/></svg>',
+  plate: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4"/></svg>',
+  lock: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4.6" y="10.4" width="14.8" height="10" rx="2.2"/><path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8"/></svg>'
+};
+
 /* ============================ 数据动作 ============================ */
 async function loadMenu() {
   state.categories = await api('/categories');
+}
+
+/** 入口页 hero 图：优先用「肉霸堡双人餐」的官方图，菜单变了就退回第一张有图的餐品 */
+const HERO_IMAGE = '/images/products/100129693.jpg';
+function heroPick() {
+  const all = state.categories.flatMap(c => c.products);
+  const hit = all.find(p => p.image === HERO_IMAGE);
+  if (hit) return hit;
+  return all.find(p => p.image) || { image: HERO_IMAGE, name: '肉霸堡双人餐' };
+}
+
+/* 关键词搜索：停顿 300ms 才发请求，避免每敲一个字都打一次接口 */
+let searchTimer = null;
+function scheduleSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 300);
+}
+async function runSearch() {
+  const kw = state.keyword.trim();
+  if (!kw) {
+    state.searchResults = [];
+    state.searching = false;
+    render();
+    return;
+  }
+  state.searching = true;
+  render();
+  try {
+    state.searchResults = await api('/products/search?keyword=' + encodeURIComponent(kw));
+  } catch (e) {
+    state.searchResults = [];
+    toast(e.message);
+  }
+  state.searching = false;
+  render();
+}
+function clearKeyword() {
+  state.keyword = '';
+  state.searchResults = [];
+  state.searching = false;
+  state.searchFocus = true;
+  render();
 }
 async function loadCart() {
   if (!state.userId) { state.cartItems = []; state.cartCount = 0; state.cartAmount = 0; return; }
@@ -294,6 +436,8 @@ async function addToCart(product) {
 /* ============================ 视图切换 ============================ */
 function go(view) {
   state.view = view;
+  // 离开点餐页就别再把焦点塞回搜索框
+  if (view !== 'menu') state.searchFocus = false;
   if (view === 'cart') loadCart().then(render).catch(e => toast(e.message));
   if (view === 'orders') loadOrders().then(render).catch(e => toast(e.message));
   if (view === 'address') loadAddresses().then(render).catch(e => toast(e.message));
@@ -307,51 +451,117 @@ function go(view) {
 function render() {
   const screen = document.getElementById('screen');
   const views = {
-    menu: viewMenu, cart: viewCart, orders: viewOrders,
+    entry: viewEntry, menu: viewMenu, cart: viewCart, orders: viewOrders,
     orderDetail: viewOrderDetail, address: viewAddress, mine: viewMine, login: viewLogin
   };
-  screen.innerHTML = (views[state.view] || viewMenu)();
+  screen.innerHTML = (views[state.view] || viewEntry)();
   bind();
 }
 
+/* ---------- 入口页：外送 / 到店自取 ----------
+   两个入口点进去是同一个点餐页 —— 不区分业务字段，订单照旧按 PICKUP 落库。
+   放最外层是为了让「取餐方式」先于菜单出现，与肯德基小程序的首屏心智一致。 */
+function viewEntry() {
+  const hero = heroPick();
+  return `
+    <div class="entry">
+      <div class="brand">
+        <div class="logo">KFC</div>
+        <div class="shop">肯德基 · 浙江农林大学店</div>
+        <div class="hours">营业时间 07:00 - 23:00</div>
+      </div>
+      <div class="hero">
+        <img src="${esc(hero.image)}" alt="">
+        <div class="cap">
+          <div class="k">今日推荐</div>
+          <div class="n">${esc(hero.name)}</div>
+        </div>
+      </div>
+      <div class="acts">
+        <div class="act" data-entry="DELIVERY">
+          <div class="tile">${ICON.scooter}</div>
+          <div style="flex:1;min-width:0">
+            <div class="t1">外送到家</div>
+            <div class="t2">骑手送到你手上 · 约 30 分钟</div>
+          </div>
+          <div class="chev">›</div>
+        </div>
+        <div class="act" data-entry="PICKUP">
+          <div class="tile">${ICON.store}</div>
+          <div style="flex:1;min-width:0">
+            <div class="t1">到店自取</div>
+            <div class="t2">到店扫码取餐 · 免配送费</div>
+          </div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="foot">两个入口进入同一个点餐页<br>本工程只保留入口差异，下单流程不区分</div>
+    </div>`;
+}
+
 /* ---------- 点餐首页 ---------- */
+
+/** 单个餐品行：分类浏览态和搜索结果态共用同一份模板 */
+function prodRow(p) {
+  return `
+    <div class="prod">
+      ${thumbHtml(p.image, 78)}
+      <div class="info">
+        <div class="name">${esc(p.name)}</div>
+        <div class="desc">${esc(p.description || '')}</div>
+        <div class="foot">
+          ${p.originPrice && p.originPrice > p.price ? `<span class="origin">¥${money(p.originPrice)}</span>` : ''}
+          <span class="price"><small>¥</small>${money(p.price)}</span>
+          <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
+        </div>
+      </div>
+    </div>`;
+}
+
 function viewMenu() {
   if (!state.categories.length) {
-    return `<div class="empty"><div class="big">😕</div><div>菜单还没加载出来</div>
+    return `<div class="empty">${ICON.plate}<div>菜单还没加载出来</div>
       <button class="btn" data-act="reload-menu">重新加载</button></div>`;
   }
-  const sidebar = state.categories.map((c, i) =>
-    `<div class="item ${i === state.activeCategory ? 'on' : ''}" data-cat="${i}">${esc(c.name)}</div>`).join('');
 
-  const products = state.categories.map((c, ci) => {
-    const rows = c.products.map(p => `
-      <div class="prod">
-        ${thumbHtml(p.image, 78)}
-        <div class="info">
-          <div class="name">${esc(p.name)}</div>
-          <div class="desc">${esc(p.description || '')}</div>
-          <div class="foot">
-            ${p.originPrice && p.originPrice > p.price ? `<span class="origin">¥${money(p.originPrice)}</span>` : ''}
-            <span class="price"><small>¥</small>${money(p.price)}</span>
-            <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
-          </div>
-        </div>
-      </div>`).join('');
-    return `<div class="cat-section" data-sec="${ci}"><div class="cat-title">${esc(c.name)}</div>${rows}</div>`;
-  }).join('');
-
-  return `
+  const searching = state.keyword.trim().length > 0;
+  const top = `
     <div class="topbar">
       <div class="row1">
         <span class="store">KFC 点餐</span>
         <span class="shop">浙江农林大学店</span>
-        <span class="switch">门店 ▾</span>
+        <span class="switch" title="取餐方式由入口页决定">${state.pickupType === 'DELIVERY' ? '外送到家' : '到店自取'}</span>
       </div>
-      <div class="segment">
-        <div class="${state.pickupType === 'PICKUP' ? 'on' : ''}" data-pickup="PICKUP">到店自取</div>
-        <div class="${state.pickupType === 'DELIVERY' ? 'on' : ''}" data-pickup="DELIVERY">外送到家</div>
+      <div class="searchbar">
+        <span class="mag">${ICON.search}</span>
+        <input id="kw" placeholder="搜索餐品 / 拼音首字母，如 YWJ"
+               value="${esc(state.keyword)}" autocomplete="off">
+        <div class="clear ${searching ? '' : 'hide'}" data-act="clear-keyword">×</div>
       </div>
-    </div>
+    </div>`;
+
+  // 搜索态：左栏收起，右侧整栏铺结果
+  if (searching) {
+    const rows = state.searchResults;
+    const body = state.searching
+      ? `<div class="empty"><div>搜索中…</div></div>`
+      : rows.length
+        ? rows.map(prodRow).join('')
+        : `<div class="empty">${ICON.plate}<div>没找到「${esc(state.keyword.trim())}」相关的餐品</div></div>`;
+    return top + `
+      <div class="result-bar">搜「<b>${esc(state.keyword.trim())}</b>」，共 <b>${rows.length}</b> 个结果</div>
+      <div class="products" id="products">${body}</div>
+      ${cartBar()}
+      ${tabBar('menu')}`;
+  }
+
+  const sidebar = state.categories.map((c, i) =>
+    `<div class="item ${i === state.activeCategory ? 'on' : ''}" data-cat="${i}">${esc(c.name)}</div>`).join('');
+
+  const products = state.categories.map((c, ci) =>
+    `<div class="cat-section" data-sec="${ci}"><div class="cat-title">${esc(c.name)}</div>${c.products.map(prodRow).join('')}</div>`).join('');
+
+  return top + `
     <div class="menu">
       <div class="sidebar" id="sidebar">${sidebar}</div>
       <div class="products" id="products">${products}</div>
@@ -364,7 +574,7 @@ function cartBar() {
   const on = state.cartCount > 0;
   return `
     <div class="cartbar">
-      <div class="carticon ${on ? 'on' : ''}">🛒${on ? `<span class="badge">${state.cartCount}</span>` : ''}</div>
+      <div class="carticon ${on ? 'on' : ''}">${ICON.cart}${on ? `<span class="badge">${state.cartCount}</span>` : ''}</div>
       <div class="cartinfo" data-act="go-cart">
         <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
         <div class="sub">${on ? '已选 ' + state.cartCount + ' 件' : '购物车是空的'}</div>
@@ -374,9 +584,9 @@ function cartBar() {
 }
 
 function tabBar(active) {
-  const tabs = [['menu','🍔','点餐'], ['orders','🧾','订单'], ['mine','👤','我的']];
+  const tabs = [['menu', ICON.burger, '点餐'], ['orders', ICON.receipt, '订单'], ['mine', ICON.person, '我的']];
   return `<div class="tabbar">${tabs.map(([k, ic, label]) =>
-    `<div class="${active === k ? 'on' : ''}" data-tab="${k}"><span>${ic}</span>${label}</div>`).join('')}</div>`;
+    `<div class="${active === k ? 'on' : ''}" data-tab="${k}"><span class="ic-svg">${ic}</span>${label}</div>`).join('')}</div>`;
 }
 
 function navBar(title, backView, action) {
@@ -389,12 +599,12 @@ function navBar(title, backView, action) {
 
 /* ---------- 购物车 ---------- */
 function viewCart() {
-  if (!state.userId) return navBar('购物车', 'menu') + `<div class="empty"><div class="big">🔒</div><div>请先登录</div>
+  if (!state.userId) return navBar('购物车', 'menu') + `<div class="empty">${ICON.lock}<div>请先登录</div>
     <button class="btn" data-tab="login">去登录</button></div>${tabBar('')}`;
 
   if (!state.cartItems.length) {
     return navBar('购物车', 'menu') +
-      `<div class="empty"><div class="big">🛒</div><div>购物车还是空的</div>
+      `<div class="empty">${ICON.cartBig}<div>购物车还是空的</div>
        <button class="btn" data-back="menu">去点餐</button></div>${tabBar('')}`;
   }
 
@@ -479,7 +689,7 @@ function viewOrders() {
       ${o.pickupCode ? `<div class="hint" style="margin-top:8px;color:var(--primary);font-weight:700">取餐码 ${esc(o.pickupCode)}</div>` : ''}
       ${acts}
     </div>`;
-  }).join('') : `<div class="empty"><div class="big">🧾</div><div>还没有订单</div></div>`;
+  }).join('') : `<div class="empty">${ICON.receiptBig}<div>还没有订单</div></div>`;
 
   return navBar('我的订单', 'menu', '<span data-act="reload-orders">刷新</span>') +
     `<div class="chips">${chips}</div><div class="list">${body}</div>${tabBar('orders')}`;
@@ -560,7 +770,7 @@ function viewAddress() {
         ${a.isDefault ? '' : `<button class="btn gray" data-set-default="${a.id}">设为默认</button>`}
         <button class="btn gray" data-del-address="${a.id}">删除</button>
       </div>
-    </div>`).join('') : `<div class="empty" style="flex:none;padding:30px 0"><div class="big">📍</div><div>还没有收货地址</div></div>`;
+    </div>`).join('') : `<div class="empty" style="flex:none;padding:30px 0">${ICON.pinBig}<div>还没有收货地址</div></div>`;
 
   return navBar('收货地址', 'mine') + `<div class="list">${form}${list}</div>`;
 }
@@ -570,14 +780,14 @@ function viewMine() {
   const u = state.user;
   const head = u ? `
     <div class="profile">
-      <div class="avatar">👤</div>
+      <div class="avatar" style="color:#fff">${ICON.person}</div>
       <div>
         <div style="font-size:17px;font-weight:700">${esc(u.nickname || u.username)}<span class="vip">WOW 会员</span></div>
         <div style="font-size:12px;color:#FFD9DE;margin-top:6px">${esc(u.phone || '未绑定手机号')}</div>
       </div>
     </div>` : `
     <div class="profile">
-      <div class="avatar" style="background:rgba(255,255,255,.2)">👤</div>
+      <div class="avatar" style="background:rgba(255,255,255,.2);color:#fff">${ICON.person}</div>
       <div style="flex:1">
         <div style="font-size:17px;font-weight:700">未登录</div>
         <div style="font-size:12px;color:#FFD9DE;margin-top:6px">登录后可下单、查看订单</div>
@@ -587,10 +797,11 @@ function viewMine() {
 
   return head + `
     <div class="rows">
-      <div class="r" data-tab="orders"><span class="ic">🧾</span>我的订单<span class="ar">›</span></div>
-      <div class="r" data-tab="address"><span class="ic">📍</span>收货地址<span class="ar">›</span></div>
-      <div class="r" data-tab="menu"><span class="ic">🍔</span>去点餐<span class="ar">›</span></div>
-      <div class="r" data-tab="login"><span class="ic">🔑</span>切换账号 / 注册<span class="ar">›</span></div>
+      <div class="r" data-tab="orders"><span class="ic">${ICON.receipt}</span>我的订单<span class="ar">›</span></div>
+      <div class="r" data-tab="address"><span class="ic">${ICON.pin}</span>收货地址<span class="ar">›</span></div>
+      <div class="r" data-tab="menu"><span class="ic">${ICON.burger}</span>去点餐<span class="ar">›</span></div>
+      <div class="r" data-tab="entry"><span class="ic">${ICON.store}</span>重新选择取餐方式<span class="ar">›</span></div>
+      <div class="r" data-tab="login"><span class="ic">${ICON.key}</span>切换账号 / 注册<span class="ar">›</span></div>
     </div>
     <div class="pad" style="margin-top:20px">
       <button class="btn ghost" style="width:100%" data-act="demo-login">演示账号一键登录</button>
@@ -665,8 +876,31 @@ function bind() {
     };
   });
 
-  screen.querySelectorAll('[data-pickup]').forEach(el => {
-    el.onclick = () => { state.pickupType = el.dataset.pickup; render(); };
+  // 搜索框：输入即搜（300ms 防抖）
+  const kw = document.getElementById('kw');
+  if (kw) {
+    kw.oninput = () => {
+      state.keyword = kw.value;
+      state.searchFocus = true;
+      scheduleSearch();
+    };
+    // 整页 innerHTML 重绘会把 input 换掉，所以重绘后要把焦点和光标位置还回去，
+    // 否则连续打字打到第二个字就掉焦点了
+    if (state.searchFocus) {
+      kw.focus();
+      const n = kw.value.length;
+      try { kw.setSelectionRange(n, n); } catch (e) { /* 个别环境不支持，忽略即可 */ }
+    }
+  }
+
+  // 入口页的两张卡：都进同一个点餐页，只把取餐方式记下来用于顶部标签
+  screen.querySelectorAll('[data-entry]').forEach(el => {
+    el.onclick = () => {
+      state.pickupType = el.dataset.entry || 'PICKUP';
+      state.view = 'menu';
+      state.searchFocus = false;
+      render();
+    };
   });
 
   screen.querySelectorAll('[data-tab]').forEach(el => {
@@ -742,6 +976,8 @@ async function runAct(act) {
   try {
     if (act === 'go-cart') {
       if (state.cartCount > 0) go('cart'); else toast('先挑点吃的吧');
+    } else if (act === 'clear-keyword') {
+      clearKeyword();
     } else if (act === 'reload-menu') {
       await loadMenu(); render();
     } else if (act === 'reload-orders') {
@@ -820,6 +1056,7 @@ async function checkout() {
   if (!state.userId) { toast('请先登录'); go('login'); return; }
   if (!state.cartItems.length) { toast('购物车是空的'); return; }
   // 下单 → 支付（演示环境没接真实支付，下单后直接调支付拿取餐码）
+  // pickupType 仍写死 PICKUP：入口页的外送 / 到店自取只做外观区分，不参与业务
   const order = await api('/orders', 'POST', {
     userId: state.userId, pickupType: 'PICKUP', remark: state.remark
   });
