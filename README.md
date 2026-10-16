@@ -45,9 +45,11 @@ mobile-dev-course/
         ├── module.json5
         ├── ets/
         │   ├── entryability/EntryAbility.ets
-        │   ├── pages/        # 7 页：Index 点餐首页 / CartPage / OrderListPage
-        │   │                 #      OrderDetailPage / AddressPage / MinePage / LoginPage
-        │   ├── components/   # 4 个：ProductThumb / ProductCard / CategorySideBar / BottomTabBar
+        │   ├── pages/        # 8 页：EntryPage 取餐方式入口页（启动页）/ Index 点餐页
+        │   │                 #      CartPage / OrderListPage / OrderDetailPage
+        │   │                 #      AddressPage / MinePage / LoginPage
+        │   ├── components/   # 5 个：ProductThumb / ProductCard / CategorySideBar
+        │   │                 #      BottomTabBar / VectorIcon（矢量图标，替代 emoji）
         │   ├── model/        # 9 个数据模型（与后端 VO 字段对齐）
         │   ├── api/          # HttpClient + 5 个模块 Api
         │   ├── common/       # Constants（BASE_URL / Theme）/ DateUtil
@@ -130,14 +132,41 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
 ```
 应看到 PostgreSQL `accepting connections` 和 Redis `PONG`（`status.bat` 可复查）。
 
-### 2. 建表（只需一次）
+### 2. 建表 + 灌数据（按 V1 → V2 → V3 顺序，各跑一次）
+
 ```bash
-"D:\devtools\postgresql-17\bin\psql.exe" -U postgres -d kfc -f \
-  backend\src\main\resources\db\migration\V1__init_schema.sql
+PSQL="D:\devtools\postgresql-17\bin\psql.exe"
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V1__init_schema.sql
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V2__kfc_real_menu.sql
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V3__product_search.sql
 ```
-脚本会建 7 张表，并写入种子数据：4 个分类 / 15 款餐品（image 暂用 emoji 占位）、
-演示账号、1 条默认地址。`application.yml` 里 `ddl-auto: none`，表结构完全由脚本管，
-不会被 Hibernate 改。
+
+（Windows 上直接写三行 `"D:\devtools\postgresql-17\bin\psql.exe" -U postgres -d kfc -f <脚本路径>` 即可。）
+
+| 脚本 | 作用 | 可否重跑 |
+|---|---|---|
+| `V1__init_schema.sql` | 建 7 张表 + 最小种子数据（4 分类 / 15 餐品占位、演示账号、1 条默认地址） | ✅ 用了 `IF NOT EXISTS` |
+| `V2__kfc_real_menu.sql` | **换成 KFC 官方真实菜单**：加 `origin_price` 列、清空餐品相关表、写入 13 分类 / 80 餐品 | ✅ 先 DELETE 再 INSERT |
+| `V3__product_search.sql` | 加 `pinyin_initials` 列并写入 80 行拼音首字母（供搜索用） | ✅ `ADD COLUMN IF NOT EXISTS` |
+
+⚠️ **三份都要跑**。后端的 `Product` 实体已经有 `originPrice` / `pinyinInitials` 两个字段，
+而 `application.yml` 里 `ddl-auto: none`（表结构完全由脚本管，Hibernate 不会自己加列）——
+只跑 V1 的话，表里缺这两列，**任何查询餐品的接口都会报 `column does not exist`，整个点餐页起不来**。
+
+跑完 `V3` 可以用这条确认数据齐了（**别名用英文**，Windows 下 psql 命令行传中文参数会报
+`invalid byte sequence for encoding "UTF8"`）：
+
+```bash
+"$PSQL" -U postgres -d kfc -A -F' | ' -c \
+  "SELECT (SELECT count(*) FROM t_category) AS cats,
+          (SELECT count(*) FROM t_product)  AS products,
+          (SELECT count(*) FROM t_product WHERE image LIKE '/images/%')      AS with_img,
+          (SELECT count(*) FROM t_product WHERE pinyin_initials IS NOT NULL) AS with_py;"
+```
+期望输出：`13 | 80 | 80 | 80`。
+
+菜单图片不必单独下载——69 张官方原图已随仓库提交，在
+`backend/src/main/resources/static/images/products/`，打包后由后端直接提供。
 
 ### 3. 起后端
 ```bash
@@ -277,13 +306,14 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 只验编译不够——字段名或接口路径对不上，真机上会静默拿不到值。已用脚本逐项比对：
 
-- **接口路径**：前端 5 个 Api 文件里的 29 处调用 ↔ 后端 7 个 Controller 的 41 个 mapping，
+- **接口路径**：前端 5 个 Api 文件里的 35 处调用 ↔ 后端 7 个 Controller 的 38 个方法级 mapping，
   逐个有对应，无拼写漂移。
 - **响应字段**：7 组 `VO ↔ model`（Product/Category/CartItem/OrderItem/Order/Address/User）
   字段集合**完全相同**，无「后端有前端没取」也无「前端有用后端没给」。
-- **请求字段**：9 组前端入参接口 ↔ 后端 DTO 字段集合**完全相同**。
+- **请求字段**：前端每个入参 interface（`CategoryBody` / `ProductBody` / `LoginBody` …）↔ 对应后端 DTO，
+  字段集合**完全相同**。
 - **枚举字面量**：`OrderStatus` 五个值、`pickupType` 的 `PICKUP`/`DELIVERY` 前后端一致。
-- **页面路由**：`main_pages.json` 注册 7 页，代码里 7 个跳转目标全部命中；7 个页面都有 `@Entry`。
+- **页面路由**：`main_pages.json` 注册 8 页，代码里 8 个跳转目标全部命中；8 个页面都有 `@Entry`。
 - **AppStorage 键名**：`userId`/`cartCount`/`cartAmount` 与 `CartViewModel` 常量逐字一致。
 
 本轮（入口页 + 搜索）复跑了同一套审计，另加 4 项：
@@ -333,7 +363,9 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ## 十二、下一步
 
-- [ ] 前端在真机/模拟器实跑，替换 emoji 占位图为真实餐品图
+- [ ] 前端在真机/模拟器实跑（emoji 占位图已于 2026-10-16 全部替换为 KFC 官方真实图，界面已两端对齐）
+- [ ] 取餐方式接入业务：外送时校验收货地址、把 `pickupType` 写进订单 —— 目前只做入口外观区分
+- [ ] 搜索加历史记录 / 热门词（现在只有实时结果）
 - [ ] 登录态改为 token 拦截器统一注入（现为首页自动登录演示账号）
 - [ ] 后台管理端（餐品/分类/订单的增删改页面）
 - [ ] 支付流程接入（现为直接改状态的假支付）
