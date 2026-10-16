@@ -91,6 +91,8 @@
   .prod .foot{margin-top:auto;display:flex;align-items:center}
   .price{color:var(--primary);font-weight:800;font-size:17px}
   .price small{font-size:11px}
+  img.thumb{object-fit:cover;display:block;padding:0}
+  .origin{color:var(--sub);font-size:11px;text-decoration:line-through;margin-right:4px}
   .plus{
     margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
     display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;
@@ -235,6 +237,14 @@ function toast(msg) {
 }
 
 function money(n) { return Number(n).toFixed(2); }
+/* 餐品图：后端 image 存的是 /images/products/xxx 相对路径，同源页面直接可用 */
+function thumbHtml(img, size) {
+  const s = size || 78;
+  if (!img) {
+    return '<div class="thumb" style="width:' + s + 'px;height:' + s + 'px"></div>';
+  }
+  return '<img class="thumb" style="width:' + s + 'px;height:' + s + 'px;object-fit:cover" src="' + esc(img) + '" alt="">';
+}
 function dt(iso) {
   if (!iso) return '';
   const d = new Date(iso.replace(/\.(\d{3})\d+/, '.$1'));
@@ -316,11 +326,12 @@ function viewMenu() {
   const products = state.categories.map((c, ci) => {
     const rows = c.products.map(p => `
       <div class="prod">
-        <div class="thumb">${esc(p.image || '🍔')}</div>
+        ${thumbHtml(p.image, 78)}
         <div class="info">
           <div class="name">${esc(p.name)}</div>
           <div class="desc">${esc(p.description || '')}</div>
           <div class="foot">
+            ${p.originPrice && p.originPrice > p.price ? `<span class="origin">¥${money(p.originPrice)}</span>` : ''}
             <span class="price"><small>¥</small>${money(p.price)}</span>
             <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
           </div>
@@ -390,7 +401,7 @@ function viewCart() {
   const rows = state.cartItems.map(it => `
     <div class="card">
       <div class="line">
-        <div class="thumb" style="width:62px;height:62px;font-size:28px">${esc(it.productImage || '🍔')}</div>
+        ${thumbHtml(it.productImage, 62)}
         <div style="flex:1;min-width:0">
           <div class="name" style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
           <div class="muted" style="margin-top:6px">¥${money(it.price)}</div>
@@ -453,7 +464,7 @@ function viewOrders() {
       </div>
       <div class="divider"></div>
       <div class="line">
-        <div class="thumb" style="width:54px;height:54px;font-size:24px">${esc(first ? (first.productImage || '🍔') : '🍔')}</div>
+        ${thumbHtml(first ? first.productImage : '', 54)}
         <div style="flex:1;min-width:0;margin-left:4px">
           <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             ${esc(first ? first.productName : '（无明细）')}</div>
@@ -480,7 +491,7 @@ function viewOrderDetail() {
   if (!o) return navBar('订单详情', 'orders') + `<div class="empty">加载中…</div>${tabBar('')}`;
   const items = (o.items || []).map(it => `
     <div class="line" style="padding:10px 0">
-      <div class="thumb" style="width:54px;height:54px;font-size:24px">${esc(it.productImage || '🍔')}</div>
+      ${thumbHtml(it.productImage, 54)}
       <div style="flex:1;min-width:0;margin-left:6px">
         <div style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
         <div class="muted" style="margin-top:4px">¥${money(it.price)} × ${it.quantity}</div>

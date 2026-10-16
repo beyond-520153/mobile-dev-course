@@ -1,8 +1,8 @@
 /**
  * 餐品 —— 与后端 domain/vo/ProductVO.java 字段一一对应
  *
- * image 字段联调期放的是 emoji 占位（后端种子数据里就是 emoji），
- * 以 http 开头时按图片渲染，否则按文字渲染。见 components/ProductThumb.ets
+ * image 字段存官方图相对路径（/images/products/xxx.gif|jpg|png），
+ * 由后端静态资源提供；展示时由 components/ProductThumb.ets 补上服务端地址。
  */
 export interface Product {
   id: number;
@@ -10,6 +10,8 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
+  /** 划线原价，等于 price 表示无折扣 */
+  originPrice?: number;
   image?: string;
   stock: number;
   sortOrder: number;

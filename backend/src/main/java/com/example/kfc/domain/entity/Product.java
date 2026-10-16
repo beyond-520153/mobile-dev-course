@@ -46,6 +46,10 @@ public class Product {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    /** 划线原价，等于 price 表示无折扣；用于还原官方菜单的「原价 → 现价」展示 */
+    @Column(name = "origin_price", precision = 10, scale = 2)
+    private BigDecimal originPrice;
+
     /** 餐品图地址 */
     @Column(length = 255)
     private String image;

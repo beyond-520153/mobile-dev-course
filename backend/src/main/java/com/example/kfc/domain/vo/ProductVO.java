@@ -18,6 +18,7 @@ public class ProductVO {
     private String name;
     private String description;
     private BigDecimal price;
+    private BigDecimal originPrice;
     private String image;
     private Integer stock;
     private Integer sortOrder;
@@ -33,6 +34,7 @@ public class ProductVO {
         vo.setName(p.getName());
         vo.setDescription(p.getDescription());
         vo.setPrice(p.getPrice());
+        vo.setOriginPrice(p.getOriginPrice());
         vo.setImage(p.getImage());
         vo.setStock(p.getStock());
         vo.setSortOrder(p.getSortOrder());

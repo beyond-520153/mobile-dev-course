@@ -30,6 +30,10 @@ public class ProductDTO {
     @PositiveOrZero(message = "价格不能为负数")
     private BigDecimal price;
 
+    /** 划线原价，不传表示无折扣 */
+    @PositiveOrZero(message = "原价不能为负数")
+    private BigDecimal originPrice;
+
     private String image;
 
     @PositiveOrZero(message = "库存不能为负数")

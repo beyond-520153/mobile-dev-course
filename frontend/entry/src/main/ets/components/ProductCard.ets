@@ -25,6 +25,12 @@ export struct ProductCard {
   onAdd: (product: Product) => void = () => {
   };
 
+  /** 有折扣时才画划线原价，还原官方菜单的「原价 → 现价」 */
+  private showOrigin(): boolean {
+    const o: number | undefined = this.product.originPrice;
+    return o !== undefined && o > this.product.price;
+  }
+
   build() {
     Row() {
       ProductThumb({ image: this.product.image ?? '', thumbSize: 78 })
@@ -47,6 +53,14 @@ export struct ProductCard {
           .width('100%')
 
         Row() {
+          if (this.showOrigin()) {
+            Text(`¥${this.product.originPrice}`)
+              .fontSize(11)
+              .fontColor(Theme.TEXT_SUB)
+              .decoration({ type: TextDecorationType.LineThrough, color: Theme.TEXT_SUB })
+              .margin({ right: 4 })
+          }
+
           Text('¥')
             .fontSize(11)
             .fontColor(Theme.PRIMARY)
