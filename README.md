@@ -177,18 +177,94 @@ java -jar target/kfc-order-1.0.0-SNAPSHOT.jar --server.port=8090
 **端口用 8090**，不是默认 8080 —— 本机 8080 被另一个常驻程序（GoAhead）占着，
 8080 上会返回它的 404 页面，容易误判成后端没起来。
 
-### 4. 起前端
-用 DevEco Studio 打开 `frontend` 目录 → Sync → 连真机或模拟器运行。
-真机调试时把 `ets/common/Constants.ets` 的 `BASE_URL` 改成电脑局域网 IP
-（现在写的是 `http://10.205.201.67:8090`），**不能写 127.0.0.1**。
+### 4. 起前端（DevEco Studio + 真机 / 模拟器）
 
-HAP 命令行构建（不用开 IDE）：
+#### 4.1 两个硬前提：设备系统版本 + 签名
+
+**① 手机系统版本必须 ≥ 工程的最低兼容版本。**
+
+`build-profile.json5` 里 `compatibleSdkVersion` 是 `6.1.1(24)`，也就是要求 **API 24**。
+低于这个版本的设备会直接**安装失败**（`INSTALL_FAILED_DEVICE_NOT_SUPPORTED` 之类），
+不是代码问题。先确认手机版本：设置 → 关于手机 → 系统版本。
+
+如果手机版本偏低，把 `compatibleSdkVersion` 降到你手机支持的档位（例如 `5.0.0(12)`）再构建。
+本项目用到的 API 都很基础（`TextInput` / `List` / `Shape` / `Path` / `Shape.viewPort` /
+`AppStorage` / `getUIContext().getRouter()`，其中 `getUIContext()` 从 API 12 起可用），
+降到 API 12 通常能编译通过。`targetSdkVersion` 不建议动。
+
+**② 命令行产物未签名，装不上真机。**
+
+命令行构建出来的是 `entry-default-unsigned.hap`（未签名），**直接装不到手机**。
+真机/模拟器调试必须在 IDE 里签名：
+DevEco Studio → `File` → `Project Structure` → `Signing Configs` → 勾选
+**Automatically generate signature** → 用华为账号登录，等它自动生成证书。
+
+（`build-profile.json5` 里 `signingConfigs` 目前是空数组 `[]`，就是这个原因。）
+
+#### 4.2 选一种连法，改 `ets/common/Constants.ets` 的 `BASE_URL`
+
+| 连法 | BASE_URL 填 | 前置条件 |
+|---|---|---|
+| ① 真机 + USB 数据线 | `http://127.0.0.1:8090` | 电脑先执行 `hdc rport tcp:8090 tcp:8090`；手机开「USB 调试」 |
+| ② 真机 + 同一 WLAN | `http://10.205.201.67:8090` | 放行 Windows 防火墙的 8090（要管理员）；手机连同一个 WiFi |
+| ③ DevEco 模拟器 | `http://10.0.2.2:8090` | 不通就退回 ② 的局域网 IP |
+
+**推荐 ①**：流量走数据线，完全绕开防火墙和「换了网络 IP 就变」的问题。
+
+```bash
+HDC="D:/DevEco Studio/sdk/default/openharmony/toolchains/hdc.exe"
+
+# 1) 手机开 USB 调试并插线，确认识别到设备
+"$HDC" list targets
+
+# 2) 建立反向端口转发：手机上的 8090 -> 电脑的 8090
+"$HDC" rport tcp:8090 tcp:8090
+
+# 3) 查看已建立的任务（换设备 / 重插线后，第 2 步要重新执行）
+"$HDC" fport ls
+```
+
+#### 4.3 走局域网 IP（方案 ②）必须放行防火墙
+
+Windows 防火墙默认拦截入站，本机三个配置文件（域 / 专用 / 公用）**全是启用状态**，
+手机访问 `10.205.201.67:8090` 会被安静丢弃（表现为应用一直转圈、最后超时）。
+放行需要**管理员权限**：
+
+```
+netsh advfirewall firewall add rule name="KFC dev 8090" dir=in action=allow protocol=TCP localport=8090
+```
+
+没有管理员权限就走方案 ①。
+
+#### 4.4 跑起来
+
+DevEco Studio 打开 `frontend` 目录 → 等 Sync 完成 → 选中设备 → `Run`。
+启动后首页能加载出菜单（13 个分类）就说明网络通了。
+
+#### 4.5 连不上时的排查顺序
+
+1. `hdc list targets` 有没有设备？没有 → 换根数据线（有些线只供电不传数据）、
+   确认手机上弹过「是否允许调试」
+2. 电脑上 `curl http://127.0.0.1:8090/api/categories` 通不通？不通 → 后端没起，回到第 3 步
+3. 用**手机浏览器**打开 `http://<电脑IP>:8090/preview.html`：
+   - 能打开 → 网络没问题，是应用侧的事（`BASE_URL` 写错，或改完没重新安装）
+   - 打不开 → 防火墙拦截或不在同一网段（方案 ②），改用方案 ①
+4. **改完 `BASE_URL` 必须重新 `Run` 安装一次**，热重载不会改常量
+
+> 关于明文 HTTP：不需要额外配置。HarmonyOS 的 `cleartextTrafficPermitted` **默认值就是 true**
+> （API 18 起 Network Kit 默认允许明文），本项目 SDK 是 API 24。
+> 工程里的 `resources/base/profile/network_config.json` 只是显式声明，留作保险。
+> 另外 `module.json5` 已声明 `ohos.permission.INTERNET`，也不必再改。
+
+#### 4.6 命令行构建（不开 IDE，仅用于自检 / CI）
+
 ```bash
 cd frontend
 DEVECO_SDK_HOME="D:/DevEco Studio/sdk" \
   "D:/DevEco Studio/tools/node/node.exe" \
   "D:/DevEco Studio/tools/hvigor/bin/hvigorw.js" assembleHap --no-daemon
 ```
+产物在 `entry/build/default/outputs/default/entry-default-unsigned.hap`，**未签名，装不了真机**。
 
 ---
 
