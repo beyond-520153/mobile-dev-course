@@ -170,47 +170,130 @@
   .pad{padding:0 12px}
 
   /* 入口页 —— 仿肯德基小程序开屏：整屏肯德基红 + 品牌徽标 + 官方菜品图 + 两张白色入口卡 */
-  .entry{
-    flex:1;display:flex;flex-direction:column;padding:24px 18px 14px;overflow-y:auto;scrollbar-width:none;
-    background:linear-gradient(178deg,#E4002B 0%,#CB0025 48%,#A3001C 100%);
+  /* ================= 入口页（仿肯德基小程序首屏） =================
+     结构：红色 hero（天际线 + 门店 + 骑手 + 车速取）
+           → 三个取餐通道 → 四个功能圆图标 → 会员卡
+           → APP热卖/大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab
+     顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏按要求先不做。 */
+  .entry{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F2F2F2}
+  .entry-scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+  .entry-scroll::-webkit-scrollbar{display:none}
+
+  /* ---- 1. 红色 hero ---- */
+  .ehero{position:relative;overflow:hidden;background:linear-gradient(180deg,#E4002B 0%,#DC0027 58%,#C6001F 100%)}
+  .ehero .skyline{position:absolute;left:0;bottom:0;width:100%;height:150px;display:block}
+  .ehero .scene{position:relative;display:block;width:100%;height:auto}
+
+  /* ---- 2. 三个取餐通道 ---- */
+  .echs{display:flex;background:#fff;height:46px}
+  .echs .ch{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    font-size:14.5px;font-weight:700;color:#1A1A1A;cursor:pointer;letter-spacing:-.3px;
   }
-  .entry::-webkit-scrollbar{display:none}
-  .entry .brand{text-align:center;flex:none}
-  .entry .logo{
-    width:62px;height:62px;margin:0 auto;border-radius:19px;background:#fff;color:var(--primary);
-    display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;
-    letter-spacing:.5px;box-shadow:0 8px 18px rgba(0,0,0,.22);
+  .echs .ch em{font-style:normal;color:#A8A8A8;font-size:15px;margin-left:2px;font-weight:400}
+  .echs .ch:active{opacity:.55}
+
+  /* ---- 3. 四个功能圆图标 ---- */
+  .etools{display:flex;background:#fff;padding:2px 4px 12px}
+  .etools .t{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
+  .etools .t .ic{
+    width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;
+    background:#FFFFFF;box-shadow:0 2px 9px rgba(0,0,0,.10);
   }
-  .entry .shop{color:#fff;font-size:14px;font-weight:700;margin-top:14px}
-  .entry .hours{color:#FFD9DE;font-size:11px;margin-top:5px}
-  .entry .hero{
-    margin-top:18px;border-radius:18px;overflow:hidden;position:relative;background:#fff;flex:none;
-    box-shadow:0 12px 26px rgba(0,0,0,.24);
+  .etools .t span{font-size:10.5px;color:#2B2B2B;letter-spacing:-.2px}
+  .etools .t:active{opacity:.6}
+  .edots{display:flex;justify-content:center;gap:4px;background:#fff;padding:0 0 9px}
+  .edots i{width:5px;height:5px;border-radius:3px;background:#E0E0E0}
+  .edots i.on{width:13px;background:#E4002B}
+
+  /* ---- 4. 会员卡 ---- */
+  .evipwrap{padding:9px 9px 0;background:#F2F2F2}
+  .evip{
+    position:relative;background:#fff;border-radius:11px;padding:10px 12px;display:flex;align-items:center;
+    overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.045);
   }
-  .entry .hero img{width:100%;height:166px;object-fit:cover;object-position:left center;display:block}
-  .entry .hero .cap{
-    position:absolute;left:0;right:0;bottom:0;padding:22px 14px 11px;color:#fff;
-    background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.66) 100%);
+  .evip .ava{width:42px;height:42px;border-radius:50%;overflow:hidden;flex:none;background:#FFF4F6}
+  .evip .mid{flex:1;min-width:0;margin-left:9px;position:relative;z-index:2}
+  .evip .l1{display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:800;color:#1A1A1A;letter-spacing:-.3px}
+  .evip .l1 .tag{
+    display:inline-flex;align-items:center;gap:2px;flex:none;
+    background:linear-gradient(90deg,#4A4A4A,#222);color:#FFD05B;
+    font-size:9.5px;font-weight:700;border-radius:8px;padding:2px 6px;
   }
-  .entry .hero .cap .k{font-size:10px;opacity:.9}
-  .entry .hero .cap .n{font-size:15px;font-weight:800;margin-top:3px}
-  .entry .acts{margin-top:16px;display:flex;flex-direction:column;gap:12px;flex:none}
-  .entry .act{
-    background:#fff;border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;
-    cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.16);transition:transform .12s;
+  .evip .l1 .open{font-size:10.5px;color:#AFAFAF;font-weight:400;flex:none}
+  .evip .l2{display:flex;align-items:center;gap:13px;margin-top:6px;font-size:10.5px;color:#9A9A9A}
+  .evip .l2 u{text-decoration:none;color:#F0A200;font-size:11px;margin-right:2px}
+  .evip .l2 b{color:#1A1A1A;font-size:11.5px;font-weight:700;margin-left:2px}
+  .evip .wow{
+    position:absolute;right:-4px;bottom:-13px;font-size:42px;font-weight:900;font-style:italic;
+    color:#FCEEF1;letter-spacing:-2px;pointer-events:none;line-height:1;
   }
-  .entry .act:active{transform:scale(.98)}
-  .entry .act .tile{
-    width:44px;height:44px;border-radius:13px;background:#FFF0F2;color:var(--primary);flex:none;
-    display:flex;align-items:center;justify-content:center;
+
+  /* ---- 5. tab ---- */
+  .etabs{display:flex;gap:22px;padding:13px 14px 4px;background:#F2F2F2}
+  .etabs div{font-size:15.5px;font-weight:700;color:#8E8E8E;cursor:pointer;letter-spacing:-.3px}
+  .etabs div.on{color:#1A1A1A;font-weight:800}
+
+  /* ---- 6. 商品 2 列网格 ---- */
+  .egrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px 9px 0;background:#F2F2F2}
+  .egc{position:relative;background:#fff;border-radius:9px;padding:8px 8px 9px;cursor:pointer;overflow:hidden}
+  .egc:active{background:#FCFCFC}
+  .egc .bd{
+    position:absolute;left:0;top:0;z-index:2;background:#E4002B;color:#fff;
+    font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:9px 0 9px 0;letter-spacing:-.2px;
   }
-  .entry .act .t1{font-size:16px;font-weight:800}
-  .entry .act .t2{font-size:11px;color:var(--sub);margin-top:5px}
-  .entry .act .chev{margin-left:auto;color:var(--hint);font-size:20px;line-height:1}
-  .entry .foot{
-    margin-top:auto;padding-top:16px;text-align:center;color:rgba(255,255,255,.74);
-    font-size:11px;flex:none;line-height:1.8;
+  .egc .pic{height:80px;display:flex;align-items:center;justify-content:center}
+  .egc .pic img{max-width:100%;max-height:80px;object-fit:contain;display:block}
+  .egc .gn{
+    font-size:11.5px;color:#1A1A1A;line-height:1.3;height:30px;overflow:hidden;margin-top:3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   }
+  .egc .gp{display:flex;align-items:baseline;gap:3px;margin-top:5px}
+  .egc .gp b{color:#E4002B;font-size:15px;font-weight:800;letter-spacing:-.5px}
+  .egc .gp b small{font-size:10px;font-weight:700;margin-right:1px}
+  .egc .gp em{font-style:normal;font-size:9.5px;color:#E4002B}
+  .egc .gp s{color:#B8B8B8;font-size:10.5px;margin-left:auto}
+
+  /* ---- 7. 两张券 ---- */
+  .ecps{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px 9px 14px;background:#F2F2F2}
+  .ecp{
+    position:relative;display:flex;align-items:center;gap:6px;border-radius:9px;padding:11px 8px;
+    background:linear-gradient(120deg,#FFF0F3,#FFE6EC);overflow:hidden;
+  }
+  .ecp.warm{background:linear-gradient(120deg,#FFF7E9,#FFEED6)}
+  .ecp .ci{width:34px;height:34px;flex:none}
+  .ecp .cw{min-width:0}
+  .ecp .ct{font-size:10.5px;color:#4A4A4A;white-space:nowrap;letter-spacing:-.2px}
+  .ecp .cv{font-size:14px;font-weight:800;color:#E4002B;margin-top:2px;white-space:nowrap}
+  .ecp .cv small{font-size:9.5px;font-weight:700}
+  .ecp .cb{
+    margin-left:auto;flex:none;width:26px;text-align:center;font-size:9px;line-height:1.3;color:#E4002B;
+    border-left:1px dashed rgba(228,0,43,.28);padding:2px 0 2px 5px;
+  }
+
+  /* ---- 8. 深色底部 tab（中间 AI 点餐凸起） ---- */
+  .etabbar{
+    flex:none;position:relative;display:flex;align-items:flex-end;height:60px;
+    padding-bottom:5px;background:linear-gradient(180deg,#3C3C3C 0%,#1D1D1D 100%);
+  }
+  .etabbar .tb{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;
+    height:50px;cursor:pointer;position:relative;z-index:2;
+  }
+  .etabbar .tb span{font-size:9.5px;color:#EDEDED;letter-spacing:-.3px;white-space:nowrap}
+  .etabbar .tb.on span{color:#FF5468;font-weight:700}
+  .etabbar .tb:active{opacity:.6}
+  .etabbar .tb.ai{z-index:3}
+  .etabbar .tb.ai .ball{
+    position:absolute;left:50%;bottom:15px;transform:translateX(-50%);
+    width:54px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 40%,#FF4A62 0%,#E4002B 58%,#BE0022 100%);
+    box-shadow:0 0 0 5px rgba(228,0,43,.20),0 6px 14px rgba(0,0,0,.42);
+    color:#fff;font-size:24px;font-weight:900;letter-spacing:-1px;
+  }
+  .etabbar .tb.ai span{margin-top:23px;color:#FF5468;font-weight:700}
+  .etabbar .tb .k-logo{font-size:19px;font-weight:900;color:#E4002B;font-style:italic;letter-spacing:-1px;line-height:1}
+  .etabbar .tb .wow-logo{font-size:15px;font-weight:900;color:#FFF;font-style:italic;letter-spacing:-.5px;line-height:1}
 
   /* 顶部搜索框 —— 取代原来的「到店自取 / 外送到家」胶囊 */
   .searchbar{
@@ -458,44 +541,267 @@ function render() {
   bind();
 }
 
-/* ---------- 入口页：外送 / 到店自取 ----------
-   两个入口点进去是同一个点餐页 —— 不区分业务字段，订单照旧按 PICKUP 落库。
-   放最外层是为了让「取餐方式」先于菜单出现，与肯德基小程序的首屏心智一致。 */
+/* ---------- 入口页：仿肯德基小程序首屏 ----------
+   自上而下：红色 hero（城市天际线 + KFC 门店 + 外卖骑手 + 车速取汽车）
+     → 三个取餐通道 → 四个功能圆图标 → 会员卡
+     → APP热卖 / 大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab。
+
+   两条边界（按需求定的）：
+   1. 顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏先不做；
+   2. 底部「首页 / 百胜出品 / AI点餐 / 大神卡 / WOW会员中心」只做入口外观，
+      点击给「功能陆续开放」提示，不接任何业务。
+   三个取餐通道进入的是同一个点餐页，只把选择写进 state.pickupType。 */
+
+/* 城市天际线：白色剪影，底部对齐，压在门店后面 */
+function skylineSvg() {
+  return `<svg class="skyline" viewBox="0 0 390 130" preserveAspectRatio="none" aria-hidden="true">
+    <g fill="#ffffff" opacity=".80">
+      <path d="M-4 130V74H10V56H20V44L24 30L28 44V54H36V72H44V52H54V68H62V86
+               A10 10 0 0 1 82 86V64H90V90H98V72H108V96H118V130Z"/>
+      <path d="M286 130V82H294V66L298 52L302 66V80H310V98H320V70H328V90H338V76H348V100
+               H356V84H366V66H376V94H384V78H394V130Z"/>
+    </g>
+    <rect x="0" y="128.6" width="390" height="1.6" fill="#ffffff" opacity=".55"/>
+  </svg>`;
+}
+
+/* 门店 + 骑手 + 车速取汽车，全部矢量绘制，避免依赖任何位图资源 */
+function heroSceneSvg() {
+  return `<svg class="scene" viewBox="0 0 390 214" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+    <ellipse cx="200" cy="212" rx="120" ry="6" fill="#000000" opacity=".10"/>
+    <ellipse cx="68" cy="207" rx="48" ry="4" fill="#000000" opacity=".10"/>
+    <ellipse cx="336" cy="207" rx="50" ry="4" fill="#000000" opacity=".10"/>
+
+    <!-- 门店 -->
+    <polygon points="262,90 284,84 284,206 262,211" fill="#F1F1F1"/>
+    <polygon points="262,80 284,74 284,84 262,90" fill="#D4001F"/>
+    <rect x="126" y="76" width="142" height="9" fill="#E4002B"/>
+    <rect x="132" y="85" width="130" height="36" fill="#FFFFFF"/>
+    <text x="150" y="112" font-family="Arial Black,Arial,Helvetica,sans-serif" font-size="21"
+          font-weight="900" fill="#E4002B" letter-spacing="0.5">KFC</text>
+    <circle cx="236" cy="103" r="15.5" fill="#FFFFFF" stroke="#E4002B" stroke-width="1.4"/>
+    <path d="M227.5 101.4c0-4.8 3.8-7.6 8.5-7.6s8.5 2.8 8.5 7.6v1h-17z" fill="#EFEFEF"/>
+    <path d="M228.5 101.4h15v4.4c0 3.6-3.4 5.8-7.5 5.8s-7.5-2.2-7.5-5.8z" fill="#F6D3B4"/>
+    <circle cx="232" cy="103.6" r="1.15" fill="#3A3A3A"/>
+    <circle cx="240" cy="103.6" r="1.15" fill="#3A3A3A"/>
+    <path d="M229.6 108.8c1.3 1.9 3.4 2.8 6.4 2.8s5.1-.9 6.4-2.8c-2.1.7-4.2 1-6.4 1s-4.3-.3-6.4-1z" fill="#FFFFFF"/>
+    <path d="M236 111.8l-2.7 1.6.5-3.3z" fill="#E4002B"/>
+    <path d="M236 111.8l2.7 1.6-.5-3.3z" fill="#E4002B"/>
+    <rect x="132" y="121" width="130" height="88" fill="#FBFBFB"/>
+    <rect x="132" y="121" width="130" height="4" fill="#E4002B"/>
+    <rect x="141" y="136" width="52" height="64" fill="#B5E1EE"/>
+    <path d="M141 168h52M167 136v64" stroke="#FFFFFF" stroke-width="2.4"/>
+    <rect x="199" y="132" width="56" height="77" fill="#B5E1EE"/>
+    <path d="M227 132v77" stroke="#FFFFFF" stroke-width="2.4"/>
+    <path d="M199 148h28M199 164h28" stroke="#FFFFFF" stroke-width="1.8"/>
+    <rect x="126" y="209" width="142" height="6" fill="#ECECEC"/>
+
+    <!-- 外卖骑手：头盔 + 躯干 + 伸向车把的手臂 -->
+    <circle cx="40" cy="198" r="10" fill="#2E2E2E"/>
+    <circle cx="40" cy="198" r="3.6" fill="#8A8A8A"/>
+    <circle cx="92" cy="198" r="10" fill="#2E2E2E"/>
+    <circle cx="92" cy="198" r="3.6" fill="#8A8A8A"/>
+    <path d="M40 198l12-15h26l14 15z" fill="#E4002B"/>
+    <rect x="20" y="156" width="34" height="30" rx="3" fill="#E4002B"/>
+    <text x="37" y="176" font-family="Arial,sans-serif" font-size="10" font-weight="700"
+          fill="#FFFFFF" text-anchor="middle">KFC</text>
+    <path d="M64 192l14 3" stroke="#B3001F" stroke-width="5" stroke-linecap="round"/>
+    <path d="M66 190l6-24 12-1 4 25z" fill="#E4002B"/>
+    <path d="M82 168l9 11" stroke="#E4002B" stroke-width="5.5" stroke-linecap="round"/>
+    <circle cx="92" cy="180" r="3" fill="#F3C6A2"/>
+    <circle cx="77" cy="155" r="8.8" fill="#F3C6A2"/>
+    <path d="M68.4 154.4a8.6 8.6 0 0 1 17.2 0v1.4H68.4z" fill="#E4002B"/>
+    <path d="M68.4 155.8h17.2" stroke="#C40022" stroke-width="1.3"/>
+
+    <!-- 车速取小屋 + 汽车 -->
+    <rect x="300" y="132" width="76" height="28" fill="#3A3A3A"/>
+    <polygon points="294,132 312,118 376,118 384,132" fill="#E4002B"/>
+    <text x="338" y="151" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="12"
+          font-weight="700" fill="#FFFFFF" text-anchor="middle">车速取</text>
+    <rect x="306" y="160" width="3" height="12" fill="#9A9A9A"/>
+    <rect x="368" y="160" width="3" height="12" fill="#9A9A9A"/>
+    <path d="M284 200v-8c0-3 2-5 5-5.6l15-2.4 12-12h30l12 12 15 2.4c3 .6 5 2.6 5 5.6v8z" fill="#E4002B"/>
+    <path d="M318 186l7-11h20l7 11z" fill="#CFEAF3"/>
+    <path d="M284 190h78" stroke="#C40022" stroke-width="1.2"/>
+    <rect x="283" y="193" width="5" height="4" rx="1.6" fill="#FFD05B"/>
+    <circle cx="304" cy="205" r="9" fill="#2E2E2E"/>
+    <circle cx="304" cy="205" r="3.2" fill="#9E9E9E"/>
+    <circle cx="356" cy="205" r="9" fill="#2E2E2E"/>
+    <circle cx="356" cy="205" r="3.2" fill="#9E9E9E"/>
+  </svg>`;
+}
+
+/* 会员卡左侧头像：上校卡通（圆形，去掉眼镜避免细节糊成一团） */
+function colonelAvatar() {
+  return `<svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
+    <circle cx="24" cy="24" r="23" fill="#FFF6F8"/>
+    <path d="M12.5 22.4c0-7.6 5.2-11.8 11.5-11.8s11.5 4.2 11.5 11.8v1.4h-23z" fill="#EFEFEF"/>
+    <path d="M14 22.4h20v7.4c0 5.2-4.4 8.4-10 8.4s-10-3.2-10-8.4z" fill="#F6D3B4"/>
+    <circle cx="19.6" cy="25.8" r="1.7" fill="#3A3A3A"/>
+    <circle cx="28.4" cy="25.8" r="1.7" fill="#3A3A3A"/>
+    <path d="M15.6 31.2c2 3.9 4.8 5.9 8.4 5.9s6.4-2 8.4-5.9c-2.8 1.1-5.6 1.6-8.4 1.6s-5.6-.5-8.4-1.6z" fill="#FFFFFF"/>
+    <path d="M24 37.8l-4.2 2.6.8-5z" fill="#E4002B"/>
+    <path d="M24 37.8l4.2 2.6-.8-5z" fill="#E4002B"/>
+  </svg>`;
+}
+
+/* 四个功能入口图标（红色描边 / 实心） */
+const TOOL_ICON = {
+  discount: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E4002B" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="3.4" y="5.4" width="17.2" height="14.6" rx="2.4"/>
+      <path d="M7.6 3.2v4.2M16.4 3.2v4.2"/><path d="M3.4 9.4h17.2"/>
+      <text x="12" y="17" font-size="6.6" font-weight="700" fill="#E4002B" stroke="none" text-anchor="middle">省</text>
+    </svg>`,
+  redpack: `<svg width="26" height="26" viewBox="0 0 24 24">
+      <rect x="4.6" y="4" width="14.8" height="16.4" rx="2.6" fill="#E4002B"/>
+      <path d="M4.6 9.2c3.4 2.6 11.4 2.6 14.8 0" stroke="#FFFFFF" stroke-width="1.5" fill="none"/>
+      <circle cx="12" cy="9.2" r="1.9" fill="#FFD05B"/>
+      <path d="M9.4 13.8h5.2M9.4 16.4h3.4" stroke="#FFFFFF" stroke-width="1.1" stroke-linecap="round"/>
+    </svg>`,
+  store: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E4002B" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M4.4 9.8V20h15.2V9.8"/><path d="M2.6 9.8l1.8-5.6h15.2l1.8 5.6z"/>
+      <path d="M9.6 20v-5.4h4.8V20"/>
+    </svg>`,
+  kball: `<svg width="26" height="26" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="#E4002B"/>
+      <path d="M8.4 6.4v11.2M15.6 6.4l-5.6 5.4M10.8 11.6l5 6" stroke="#FFFFFF" stroke-width="2.1"
+            stroke-linecap="round" fill="none"/>
+    </svg>`
+};
+
+/* 底部 tab 图标（深底上的白色） */
+const TAB_ICON = {
+  square: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.8"/>
+      <path d="M3.6 9.2h16.8M9.6 9.2v11.2M14.6 3.6v5.6"/>
+      <circle cx="7" cy="6.4" r="0.9" fill="#FFFFFF" stroke="none"/>
+    </svg>`,
+  crown: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M3.6 8.2l3.9 3.3L12 5.2l4.5 6.3 3.9-3.3-1.9 10H5.5z"/>
+    </svg>`
+};
+
+/* 两张券的插图 */
+const COUPON_ICON = {
+  scooter: `<svg width="34" height="34" viewBox="0 0 40 40">
+      <circle cx="11" cy="29" r="5.4" fill="#E4002B"/><circle cx="11" cy="29" r="2" fill="#FFF"/>
+      <circle cx="31" cy="29" r="5.4" fill="#E4002B"/><circle cx="31" cy="29" r="2" fill="#FFF"/>
+      <path d="M11 29l5-8h13l2 8z" fill="#E4002B"/>
+      <rect x="4" y="12" width="13" height="12" rx="1.6" fill="#E4002B"/>
+      <text x="10.5" y="21" font-size="5" font-weight="700" fill="#FFF" text-anchor="middle">KFC</text>
+      <circle cx="24" cy="12" r="4.6" fill="#F3C6A2"/>
+      <path d="M19.4 12a4.6 4.6 0 0 1 9.2 0z" fill="#E4002B"/>
+    </svg>`,
+  pack: `<svg width="34" height="34" viewBox="0 0 40 40">
+      <rect x="9" y="7" width="22" height="26" rx="3" fill="#E4002B"/>
+      <path d="M9 15c5 3.6 17 3.6 22 0" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+      <circle cx="20" cy="15" r="2.8" fill="#FFD05B"/>
+      <text x="20" y="28" font-size="7" font-weight="700" fill="#FFFFFF" text-anchor="middle">¥</text>
+    </svg>`
+};
+
+/* 从真实菜单里挑一款陈列品：按关键词命中，都不中就用第 idx 个有图的 */
+function cfPick(keys, idx) {
+  const pool = state.categories.flatMap(c => c.products).filter(p => p.image);
+  if (!pool.length) return null;
+  for (let i = 0; i < keys.length; i++) {
+    const hit = pool.find(p => p.name.indexOf(keys[i]) >= 0);
+    if (hit) return hit;
+  }
+  return pool[idx % pool.length];
+}
+
+/* 首页 4 个陈列位：角标和价格照截图写，图与名称用真实菜单，找不到就用兜底候选 */
+function cfCards(tab) {
+  const conf = (tab === 'VIP') ? [
+    { keys: ['生椰'], badge: '', price: '9.9', origin: '22', idx: 3 },
+    { keys: ['拿铁'], badge: '', price: '9.9', origin: '19', idx: 9 },
+    { keys: ['美式'], badge: '', price: '9.9', origin: '18', idx: 15 },
+    { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', idx: 21 }
+  ] : [
+    { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '4件299', price: '29.9', from: true, origin: '63.6', idx: 0 },
+    { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', idx: 12 },
+    { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '8件499', price: '49.9', from: true, origin: '127', idx: 1 },
+    { keys: ['生椰', '拿铁'], badge: '', price: '9.9', origin: '22', idx: 40 }
+  ];
+  return conf.map((c, i) => {
+    const p = cfPick(c.keys, c.idx + i * 7);
+    if (!p) return '';
+    return `<div class="egc" data-entry="DELIVERY">
+      ${c.badge ? `<span class="bd">${c.badge}</span>` : ''}
+      <div class="pic"><img src="${esc(p.image)}" alt=""></div>
+      <div class="gn">${esc(p.name)}</div>
+      <div class="gp"><b><small>¥</small>${c.price}</b>${c.from ? '<em>起</em>' : ''}<s>¥${c.origin}</s></div>
+    </div>`;
+  }).join('');
+}
+
+/* 深色底部 tab：AI 点餐是中间凸起的大圆 */
+function entryTabBar() {
+  return `<div class="etabbar">
+    <div class="tb on" data-etab="首页"><div class="k-logo">K</div><span>首页</span></div>
+    <div class="tb" data-etab="百胜出品">${TAB_ICON.square}<span>百胜出品</span></div>
+    <div class="tb ai" data-etab="AI点餐"><div class="ball">K</div><span>AI点餐</span></div>
+    <div class="tb" data-etab="大神卡">${TAB_ICON.crown}<span>大神卡</span></div>
+    <div class="tb" data-etab="WOW会员中心"><div class="wow-logo">WOW</div><span>会员中心</span></div>
+  </div>`;
+}
+
 function viewEntry() {
-  const hero = heroPick();
+  const tab = state.entryTab || 'HOT';
   return `
     <div class="entry">
-      <div class="brand">
-        <div class="logo">KFC</div>
-        <div class="shop">肯德基 · 浙江农林大学店</div>
-        <div class="hours">营业时间 07:00 - 23:00</div>
-      </div>
-      <div class="hero">
-        <img src="${esc(hero.image)}" alt="">
-        <div class="cap">
-          <div class="k">今日推荐</div>
-          <div class="n">${esc(hero.name)}</div>
+      <div class="entry-scroll">
+        <div class="ehero">${skylineSvg()}${heroSceneSvg()}</div>
+
+        <div class="echs">
+          <div class="ch" data-entry="DELIVERY">外送到家<em>›</em></div>
+          <div class="ch" data-entry="PICKUP">到店自取<em>›</em></div>
+          <div class="ch" data-entry="DRIVE">开车速取<em>›</em></div>
         </div>
-      </div>
-      <div class="acts">
-        <div class="act" data-entry="DELIVERY">
-          <div class="tile">${ICON.scooter}</div>
-          <div style="flex:1;min-width:0">
-            <div class="t1">外送到家</div>
-            <div class="t2">骑手送到你手上 · 约 30 分钟</div>
+
+        <div class="etools">
+          <div class="t" data-etool="优惠全知道"><div class="ic">${TOOL_ICON.discount}</div><span>优惠全知道</span></div>
+          <div class="t" data-etool="爆红包"><div class="ic">${TOOL_ICON.redpack}</div><span>爆红包</span></div>
+          <div class="t" data-etool="肯家到店"><div class="ic">${TOOL_ICON.store}</div><span>肯家到店</span></div>
+          <div class="t" data-etool="多人团餐"><div class="ic">${TOOL_ICON.kball}</div><span>多人团餐</span></div>
+        </div>
+        <div class="edots"><i class="on"></i><i></i></div>
+
+        <div class="evipwrap">
+          <div class="evip" data-etool="大神卡">
+            <div class="ava">${colonelAvatar()}</div>
+            <div class="mid">
+              <div class="l1">元气满满的热美式<span class="tag">大神卡</span><span class="open">开通 ›</span></div>
+              <div class="l2">
+                <span><u>¥金</u>5.1万</span>
+                <span>卡券<b>30</b>张</span>
+                <span>余额<b>0</b>元</span>
+              </div>
+            </div>
+            <div class="wow">WOW</div>
           </div>
-          <div class="chev">›</div>
         </div>
-        <div class="act" data-entry="PICKUP">
-          <div class="tile">${ICON.store}</div>
-          <div style="flex:1;min-width:0">
-            <div class="t1">到店自取</div>
-            <div class="t2">到店扫码取餐 · 免配送费</div>
+
+        <div class="etabs">
+          <div class="${tab === 'HOT' ? 'on' : ''}" data-ecf="HOT">APP热卖</div>
+          <div class="${tab === 'VIP' ? 'on' : ''}" data-ecf="VIP">大神卡专区</div>
+        </div>
+        <div class="egrid">${cfCards(tab)}</div>
+
+        <div class="ecps">
+          <div class="ecp" data-etool="免外送费券">
+            <div class="ci">${COUPON_ICON.scooter}</div>
+            <div class="cw"><div class="ct">免外送费券</div><div class="cv">0<small>元</small></div></div>
+            <div class="cb">立即<br>使用</div>
           </div>
-          <div class="chev">›</div>
+          <div class="ecp warm" data-etool="外送爆红包">
+            <div class="ci">${COUPON_ICON.pack}</div>
+            <div class="cw"><div class="ct">外送爆红包</div><div class="cv"><small>最高</small>18<small>元</small></div></div>
+          </div>
         </div>
       </div>
-      <div class="foot">两个入口进入同一个点餐页<br>本工程只保留入口差异，下单流程不区分</div>
+      ${entryTabBar()}
     </div>`;
 }
 
@@ -893,12 +1199,27 @@ function bind() {
     }
   }
 
-  // 入口页的两张卡：都进同一个点餐页，只把取餐方式记下来用于顶部标签
+  // 入口页的三个取餐通道 + 4 张陈列位：都进同一个点餐页，只把取餐方式记下来
   screen.querySelectorAll('[data-entry]').forEach(el => {
     el.onclick = () => {
       state.pickupType = el.dataset.entry || 'PICKUP';
       state.view = 'menu';
       state.searchFocus = false;
+      render();
+    };
+  });
+
+  // 入口页其余入口（功能图标 / 会员卡 / 券 / 底部 tab）：本轮只做外观，点了给提示
+  screen.querySelectorAll('[data-etool],[data-etab]').forEach(el => {
+    el.onclick = () => {
+      toast((el.dataset.etool || el.dataset.etab) + '：功能陆续开放');
+    };
+  });
+
+  // APP热卖 / 大神卡专区 切换
+  screen.querySelectorAll('[data-ecf]').forEach(el => {
+    el.onclick = () => {
+      state.entryTab = el.dataset.ecf;
       render();
     };
   });
