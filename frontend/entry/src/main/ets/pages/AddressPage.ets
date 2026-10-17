@@ -120,14 +120,16 @@ struct AddressPage {
   @Builder
   navBar() {
     Row() {
-      Text('‹')
-        .fontSize(24)
-        .fontColor(Theme.TEXT)
-        .width(44)
-        .textAlign(TextAlign.Center)
-        .onClick(() => {
-          this.getUIContext().getRouter().back();
-        })
+      // 返回：矢量箭头（原来是文字字符 ‹）
+      Row() {
+        VectorIcon({ path: Icons.ARROW_BACK, iconSize: 18, color: Theme.TEXT })
+      }
+      .width(44)
+      .height(44)
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => {
+        this.getUIContext().getRouter().back();
+      })
 
       Text('收货地址')
         .fontSize(17)

@@ -119,14 +119,16 @@ struct CartPage {
   @Builder
   navBar() {
     Row() {
-      Text('‹')
-        .fontSize(24)
-        .fontColor(Theme.TEXT)
-        .width(36)
-        .textAlign(TextAlign.Center)
-        .onClick(() => {
-          this.getUIContext().getRouter().back();
-        })
+      // 返回：矢量箭头。原来是文字字符 ‹，不同设备字体不一会飘粗细和基线
+      Row() {
+        VectorIcon({ path: Icons.ARROW_BACK, iconSize: 18, color: Theme.TEXT })
+      }
+      .width(36)
+      .height(44)
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => {
+        this.getUIContext().getRouter().back();
+      })
 
       Text('购物车')
         .fontSize(17)

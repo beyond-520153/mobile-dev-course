@@ -2,6 +2,7 @@ import { Theme, Constants } from '../common/Constants';
 import { User } from '../model/User';
 import { UserApi } from '../api/UserApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 登录 / 注册页
@@ -72,14 +73,16 @@ struct LoginPage {
   build() {
     Column() {
       Row() {
-        Text('‹')
-          .fontSize(24)
-          .fontColor(Theme.TEXT)
-          .width(44)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.getUIContext().getRouter().back();
-          })
+        // 返回：矢量箭头（原来是文字字符 ‹）
+        Row() {
+          VectorIcon({ path: Icons.ARROW_BACK, iconSize: 18, color: Theme.TEXT })
+        }
+        .width(44)
+        .height(44)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => {
+          this.getUIContext().getRouter().back();
+        })
 
         Text(this.mode === 'LOGIN' ? '登录' : '注册')
           .fontSize(17)

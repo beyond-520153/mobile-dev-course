@@ -5,6 +5,7 @@ import { OrderItem } from '../model/OrderItem';
 import { OrderDetailParams } from '../model/RouteParams';
 import { OrderApi } from '../api/OrderApi';
 import { ProductThumb } from '../components/ProductThumb';
+import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
  * 订单详情页
@@ -75,14 +76,16 @@ struct OrderDetailPage {
   @Builder
   navBar() {
     Row() {
-      Text('‹')
-        .fontSize(24)
-        .fontColor(Theme.TEXT)
-        .width(44)
-        .textAlign(TextAlign.Center)
-        .onClick(() => {
-          this.getUIContext().getRouter().back();
-        })
+      // 返回：矢量箭头（原来是文字字符 ‹）
+      Row() {
+        VectorIcon({ path: Icons.ARROW_BACK, iconSize: 18, color: Theme.TEXT })
+      }
+      .width(44)
+      .height(44)
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => {
+        this.getUIContext().getRouter().back();
+      })
 
       Text('订单详情')
         .fontSize(17)

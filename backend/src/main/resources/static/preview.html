@@ -36,7 +36,12 @@
     height:46px;background:#fff;display:flex;align-items:center;flex:none;
     border-bottom:1px solid var(--line);padding:0 6px;
   }
-  .navbar .back{width:40px;font-size:22px;text-align:center;cursor:pointer;color:var(--text)}
+  /* 返回：矢量箭头（原来是文字字符 ‹），与点餐页顶栏保持同一套图标语言 */
+  .navbar .back{
+    width:40px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--text);
+  }
+  .navbar .back .ic-svg{height:20px}
   .navbar .title{flex:1;text-align:center;font-size:16px;font-weight:700}
   .navbar .act{width:50px;text-align:center;font-size:13px;color:var(--primary);cursor:pointer}
   .toast{
@@ -929,7 +934,7 @@ function tabBar(active) {
 
 function navBar(title, backView, action) {
   return `<div class="navbar">
-    <div class="back" data-back="${backView}">‹</div>
+    <div class="back" data-back="${backView}" title="返回" aria-label="返回">${ICON.back}</div>
     <div class="title">${esc(title)}</div>
     <div class="act">${action || ''}</div>
   </div>`;
