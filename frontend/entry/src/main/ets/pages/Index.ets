@@ -251,10 +251,44 @@ struct Index {
     return '到店自取';
   }
 
+  /**
+   * 返回首页（入口页）
+   *
+   * 三个通道（外送到家 / 到店自取 / 开车速取）进的是同一个点餐页，
+   * 而点餐页是入口页 pushUrl 进来的，所以 back() 就能回去。
+   * 万一栈里没有上一页（被直接拉起），back() 无效，退回 replaceUrl 兜底。
+   */
+  private goHome(): void {
+    this.clearKeyword();
+    try {
+      this.getUIContext().getRouter().back();
+    } catch (err) {
+      try {
+        this.getUIContext().getRouter().replaceUrl({ url: 'pages/EntryPage' });
+      } catch (err2) {
+        this.toast('返回失败，请重试');
+      }
+    }
+  }
+
   @Builder
   topBar() {
     Column() {
       Row() {
+        // 返回首页：向左箭头，红底上的半透明白圆
+        Row() {
+          VectorIcon({ path: Icons.ARROW_BACK, iconSize: 17, color: '#FFFFFF' })
+        }
+        .width(28)
+        .height(28)
+        .borderRadius(14)
+        .backgroundColor('#FFFFFF2E')
+        .justifyContent(FlexAlign.Center)
+        .margin({ right: 8 })
+        .onClick(() => {
+          this.goHome();
+        })
+
         Text('KFC 点餐')
           .fontSize(17)
           .fontWeight(FontWeight.Bold)

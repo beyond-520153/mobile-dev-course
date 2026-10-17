@@ -62,6 +62,14 @@
   .topbar .row1 .store{font-size:18px;font-weight:800}
   .topbar .row1 .shop{margin-left:8px;font-size:12px;color:#FFD9DE}
   .topbar .row1 .switch{margin-left:auto;font-size:12px;cursor:pointer}
+  /* 返回首页按钮：红底上的半透明白圆，点它回入口页 */
+  .topbar .row1 .back{
+    width:28px;height:28px;border-radius:14px;margin-right:8px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;background:rgba(255,255,255,.18);cursor:pointer;
+  }
+  .topbar .row1 .back:active{background:rgba(255,255,255,.34)}
+  .topbar .row1 .back .ic-svg{height:19px}
   .segment{display:flex;margin-top:10px;background:rgba(255,255,255,.16);border-radius:16px;padding:3px}
   .segment div{
     flex:1;text-align:center;font-size:13px;line-height:28px;border-radius:14px;cursor:pointer;color:#fff;
@@ -425,6 +433,8 @@ const ICON = {
   scooter: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="17.4" r="2.6"/><circle cx="18.4" cy="17.4" r="2.6"/><path d="M8.2 17.4h7.6"/><path d="M18.4 17.4l-1.8-8.2h-3.3"/><path d="M12.4 9.2h3.9"/><rect x="2.2" y="6.4" width="5.2" height="5.8" rx="1.1"/><path d="M7.4 12.2v2.4"/></svg>',
   store: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8V20h15.6V9.8"/><path d="M2.6 9.8l1.7-5.6h15.4l1.7 5.6z"/><path d="M9.6 20v-5.4h4.8V20"/></svg>',
   search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.6" cy="10.6" r="6.4"/><path d="M15.3 15.3l5.1 5.1"/></svg>',
+  // 返回首页：向左箭头。点餐页顶栏用它回入口页，外送/自取/速取三个通道共用
+  back: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.6L7.4 12l7.4 7.4"/></svg>',
   cart: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
   cartBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
   burger: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.2a8 8 0 0 1 16 0z"/><path d="M4 12.4h16"/><path d="M5.2 15h13.6v1.7a2.6 2.6 0 0 1-2.6 2.6H7.8A2.6 2.6 0 0 1 5.2 16.7z"/></svg>',
@@ -521,6 +531,12 @@ function go(view) {
   state.view = view;
   // 离开点餐页就别再把焦点塞回搜索框
   if (view !== 'menu') state.searchFocus = false;
+  // 回首页时把搜索状态清干净，否则再从入口进来会停在搜索结果上
+  if (view === 'entry') {
+    state.keyword = '';
+    state.searchResults = [];
+    state.searching = false;
+  }
   if (view === 'cart') loadCart().then(render).catch(e => toast(e.message));
   if (view === 'orders') loadOrders().then(render).catch(e => toast(e.message));
   if (view === 'address') loadAddresses().then(render).catch(e => toast(e.message));
@@ -849,6 +865,7 @@ function viewMenu() {
   const top = `
     <div class="topbar">
       <div class="row1">
+        <div class="back" data-act="back-home" title="返回首页" aria-label="返回首页">${ICON.back}</div>
         <span class="store">KFC 点餐</span>
         <span class="shop">浙江农林大学店</span>
         <span class="switch" title="取餐方式由入口页决定">${pickupLabel(state.pickupType)}</span>
@@ -1312,6 +1329,8 @@ async function runAct(act) {
   try {
     if (act === 'go-cart') {
       if (state.cartCount > 0) go('cart'); else toast('先挑点吃的吧');
+    } else if (act === 'back-home') {
+      go('entry');
     } else if (act === 'clear-keyword') {
       clearKeyword();
     } else if (act === 'reload-menu') {
