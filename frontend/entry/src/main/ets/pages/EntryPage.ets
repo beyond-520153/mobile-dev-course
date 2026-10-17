@@ -121,32 +121,45 @@ struct EntryPage {
     return [
       { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '4件299', price: '29.9', origin: '63.6', from: true, idx: 0 },
       { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', from: false, idx: 12 },
-      { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '8件499', price: '49.9', origin: '127', from: true, idx: 1 },
+      { keys: ['周末疯狂', '疯狂拼', '拼', '桶'], badge: '8件499', price: '49.9', origin: '127', from: true, idx: 1 },
       { keys: ['生椰', '拿铁'], badge: '', price: '9.9', origin: '22', from: false, idx: 40 }
     ];
   }
 
-  /** 按关键词挑一个餐品，挑不到就按下标取模 */
-  private pick(c: HotConf, extra: number): Product | undefined {
+  /**
+   * 按关键词挑一个餐品，挑不到就按下标取模
+   *
+   * used 是已占用的**餐品名**：四个陈列位必须是四款不同餐品。
+   * 不能按 id 去重 —— 真实菜单里同一款会挂在两个分类下
+   * （「四味小食拼盘」在人气热卖 id=27、炸鸡小食 id=42），
+   * 按 id 挡不住，页面上会并排出现两张一模一样的卡（预览页踩过这个坑）。
+   */
+  private pick(c: HotConf, extra: number, used: string[]): Product | undefined {
     if (this.pool.length === 0) {
       return undefined;
     }
+    let src: Product[] = this.pool.filter((p: Product) => used.indexOf(p.name) < 0);
+    if (src.length === 0) {
+      src = this.pool;
+    }
     for (let i = 0; i < c.keys.length; i++) {
       const key = c.keys[i];
-      const hit: Product | undefined = this.pool.find((p: Product) => p.name.indexOf(key) >= 0);
+      const hit: Product | undefined = src.find((p: Product) => p.name.indexOf(key) >= 0);
       if (hit !== undefined) {
         return hit;
       }
     }
-    return this.pool[(c.idx + extra) % this.pool.length];
+    return src[(c.idx + extra) % src.length];
   }
 
   private buildCards(tab: string): HotCard[] {
     const conf = this.confOf(tab);
+    const used: string[] = [];
     const out: HotCard[] = [];
     conf.forEach((c: HotConf, i: number) => {
-      const p = this.pick(c, i * 7);
+      const p = this.pick(c, i * 7, used);
       if (p !== undefined) {
+        used.push(p.name);
         out.push({
           name: p.name,
           image: p.image !== undefined ? p.image : '',
@@ -168,13 +181,22 @@ struct EntryPage {
   }
 
   private notify(msg: string): void {
-    this.getUIContext().getPromptAction().showToast({ message: msg, duration: 1500 });
+    // showToast 在弹窗被系统抢占时会抛异常，入口页的占位提示不该因此崩掉页面
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: msg, duration: 1500 });
+    } catch (e) {
+      console.warn('showToast failed: ' + JSON.stringify(e));
+    }
   }
 
   /** 选好取餐方式 → 进点餐页（三处入口同一个页面） */
   private enter(type: string): void {
     this.pickupType = type;
-    this.getUIContext().getRouter().pushUrl({ url: 'pages/Index' });
+    try {
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/Index' });
+    } catch (e) {
+      console.error('pushUrl pages/Index failed: ' + JSON.stringify(e));
+    }
   }
 
   /* ------------------------- 头部插画（Canvas） ------------------------- */

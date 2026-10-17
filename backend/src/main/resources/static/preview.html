@@ -700,10 +700,16 @@ const COUPON_ICON = {
     </svg>`
 };
 
-/* 从真实菜单里挑一款陈列品：按关键词命中，都不中就用第 idx 个有图的 */
-function cfPick(keys, idx) {
-  const pool = state.categories.flatMap(c => c.products).filter(p => p.image);
-  if (!pool.length) return null;
+/* 从真实菜单里挑一款陈列品：按关键词命中，都不中就用第 idx 个有图的
+   used 里是已占用的**餐品名** —— 四个陈列位必须是四款不同餐品。
+   注意不能按 id 去重：真实菜单里同一款会挂在两个分类下
+   （如「四味小食拼盘」在人气热卖 id=27、炸鸡小食 id=42），
+   按 id 去重挡不住，页面上会并排出现两张一模一样的卡。 */
+function cfPick(keys, idx, used) {
+  const all = state.categories.flatMap(c => c.products).filter(p => p.image);
+  if (!all.length) return null;
+  const free = all.filter(p => !used || !used.has(p.name));
+  const pool = free.length ? free : all;
   for (let i = 0; i < keys.length; i++) {
     const hit = pool.find(p => p.name.indexOf(keys[i]) >= 0);
     if (hit) return hit;
@@ -721,12 +727,14 @@ function cfCards(tab) {
   ] : [
     { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '4件299', price: '29.9', from: true, origin: '63.6', idx: 0 },
     { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', idx: 12 },
-    { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '8件499', price: '49.9', from: true, origin: '127', idx: 1 },
+    { keys: ['周末疯狂', '疯狂拼', '拼', '桶'], badge: '8件499', price: '49.9', from: true, origin: '127', idx: 1 },
     { keys: ['生椰', '拿铁'], badge: '', price: '9.9', origin: '22', idx: 40 }
   ];
+  const used = new Set();
   return conf.map((c, i) => {
-    const p = cfPick(c.keys, c.idx + i * 7);
+    const p = cfPick(c.keys, c.idx + i * 7, used);
     if (!p) return '';
+    used.add(p.name);
     return `<div class="egc" data-entry="DELIVERY">
       ${c.badge ? `<span class="bd">${c.badge}</span>` : ''}
       <div class="pic"><img src="${esc(p.image)}" alt=""></div>
