@@ -234,6 +234,23 @@ struct Index {
     this.resultLoading = false;
   }
 
+  /**
+   * 取餐方式显示文案
+   *
+   * 入口页有三个通道（外送到家 / 到店自取 / 开车速取），这里必须三路映射。
+   * 以前写成 `pickupType === 'DELIVERY' ? '外送到家' : '到店自取'`，
+   * 「开车速取」进来会被错标成「到店自取」。
+   */
+  private pickupLabel(): string {
+    if (this.pickupType === 'DELIVERY') {
+      return '外送到家';
+    }
+    if (this.pickupType === 'DRIVE') {
+      return '开车速取';
+    }
+    return '到店自取';
+  }
+
   @Builder
   topBar() {
     Column() {
@@ -250,7 +267,8 @@ struct Index {
           .layoutWeight(1)
 
         // 取餐方式取自入口页的选择，纯展示（KFC 小程序这里也是只读标签）
-        Text(this.pickupType === 'DELIVERY' ? '外送到家' : '到店自取')
+        // 入口页有三个通道，别用二选一的三元表达式，否则「开车速取」会显示成「到店自取」
+        Text(this.pickupLabel())
           .fontSize(11)
           .fontColor(Color.White)
           .padding({ left: 8, right: 8, top: 3, bottom: 3 })

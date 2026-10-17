@@ -832,6 +832,13 @@ function prodRow(p) {
     </div>`;
 }
 
+/* 取餐方式文案：入口页有三个通道，不能写成二选一的三元，否则「开车速取」显示成「到店自取」 */
+function pickupLabel(t) {
+  if (t === 'DELIVERY') return '外送到家';
+  if (t === 'DRIVE') return '开车速取';
+  return '到店自取';
+}
+
 function viewMenu() {
   if (!state.categories.length) {
     return `<div class="empty">${ICON.plate}<div>菜单还没加载出来</div>
@@ -844,7 +851,7 @@ function viewMenu() {
       <div class="row1">
         <span class="store">KFC 点餐</span>
         <span class="shop">浙江农林大学店</span>
-        <span class="switch" title="取餐方式由入口页决定">${state.pickupType === 'DELIVERY' ? '外送到家' : '到店自取'}</span>
+        <span class="switch" title="取餐方式由入口页决定">${pickupLabel(state.pickupType)}</span>
       </div>
       <div class="searchbar">
         <span class="mag">${ICON.search}</span>
