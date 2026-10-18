@@ -1,10 +1,12 @@
 import { Theme } from '../common/Constants';
 import { User } from '../model/User';
 import { UserApi } from '../api/UserApi';
+import { MemberCard, MemberSummary } from '../model/Member';
+import { MemberApi } from '../api/MemberApi';
 import { Icons, VectorIcon } from '../components/VectorIcon';
 import { EntryTabBar } from '../components/EntryTabBar';
 
-/** 四项会员数据（后端暂无会员中心表，先按官方截图给占位值） */
+/** 四项会员数据（V金 / 卡券 / 余额 / 成就，取自 /api/member/summary） */
 interface WowStat {
   value: string;
   label: string;
@@ -20,7 +22,8 @@ interface WowStat {
  *   → 四个功能入口（我的订单 / 送餐地址 / 车辆档案 / 自助服务）
  *   → 层叠会员卡（咖啡卡小条 + 大神卡主体）→ 深色底部 tab
  *
- * 数据全是占位：昵称与会员号来自后端 t_user，其余四项没有对应表。
+ * 数据来自 t_member（会员号 / V金 / 卡券 / 余额 / 成就）与 t_member_card（生效卡）；
+ * 未登录或接口不通时四项显示「--」，不会把 0 当成真实值误导人。
  */
 @Entry
 @Component
@@ -30,15 +33,11 @@ struct WOWMemberPage {
 
   @State user: User | null = null;
 
+  /** 会员概要（会员号 / V金 / 卡券 / 余额 / 成就 / 生效卡） */
+  @State summary: MemberSummary | null = null;
+
   /** 头部剪影画布 */
   private figCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
-
-  private stats: WowStat[] = [
-    { value: '--', label: '成就' },
-    { value: '5.1万', label: 'V金' },
-    { value: '29', label: '卡券' },
-    { value: '0', label: '余额' }
-  ];
 
   aboutToAppear(): void {
     this.load();
@@ -51,7 +50,13 @@ struct WOWMemberPage {
   private async load(): Promise<void> {
     if (this.userId <= 0) {
       this.user = null;
+      this.summary = null;
       return;
+    }
+    try {
+      this.summary = await MemberApi.summary(this.userId);
+    } catch (err) {
+      this.summary = null;
     }
     try {
       this.user = await UserApi.detail(this.userId);
@@ -61,19 +66,28 @@ struct WOWMemberPage {
   }
 
   private displayName(): string {
-    if (this.user === null) {
-      return '未登录';
+    if (this.summary !== null) {
+      const nick: string | undefined = this.summary.nickname;
+      if (nick !== undefined && nick.length > 0) {
+        return nick;
+      }
     }
-    const nick: string | undefined = this.user.nickname;
-    return nick !== undefined && nick.length > 0 ? nick : this.user.username;
+    if (this.user === null) {
+      return this.userId > 0 ? '会员' : '未登录';
+    }
+    const userName: string | undefined = this.user.nickname;
+    if (userName !== undefined && userName.length > 0) {
+      return userName;
+    }
+    return this.user.username;
   }
 
-  /** 会员号：NO. 8000 xxxx xxxx（由用户 id 推出来，只为占位好看） */
+  /** 会员号：NO. 8000 0113，四位一空格 */
   private memberNo(): string {
-    if (this.userId <= 0) {
-      return '登录后同步会员号';
+    if (this.summary === null) {
+      return this.userId > 0 ? '会员号同步中…' : '登录后同步会员号';
     }
-    const raw: string = (80000000 + this.userId * 113).toString();
+    const raw: string = this.summary.memberNo;
     let out: string = '';
     for (let i = 0; i < raw.length; i++) {
       if (i > 0 && i % 4 === 0) {
@@ -82,6 +96,64 @@ struct WOWMemberPage {
       out += raw.charAt(i);
     }
     return 'NO. ' + out;
+  }
+
+  /** 大数字口吻保持一致：V金满 1 万按「万」显示 */
+  private vgoldText(value: number): string {
+    if (value >= 10000) {
+      return (value / 10000).toFixed(1) + '万';
+    }
+    return value.toString();
+  }
+
+  /** 四格数据：未登录 / 接口失败一律「--」，不拿 0 冒充真实值 */
+  private statList(): WowStat[] {
+    const s: MemberSummary | null = this.summary;
+    if (s === null) {
+      return [
+        { value: '--', label: '成就' },
+        { value: '--', label: 'V金' },
+        { value: '--', label: '卡券' },
+        { value: '--', label: '余额' }
+      ];
+    }
+    return [
+      { value: s.achievement > 0 ? s.achievement.toString() : '--', label: '成就' },
+      { value: this.vgoldText(s.vgold), label: 'V金' },
+      { value: s.couponCount.toString(), label: '卡券' },
+      { value: Number(s.balance).toFixed(0), label: '余额' }
+    ];
+  }
+
+  /** 生效中的卡：type 传 GOD / COFFEE */
+  private activeCard(type: string): MemberCard | null {
+    if (this.summary === null) {
+      return null;
+    }
+    for (let i = 0; i < this.summary.cards.length; i++) {
+      if (this.summary.cards[i].cardType === type) {
+        return this.summary.cards[i];
+      }
+    }
+    return null;
+  }
+
+  /** 卡标题：有卡用真实档位名，没卡用默认档位占位 */
+  private cardLabel(type: string, fallback: string): string {
+    const card: MemberCard | null = this.activeCard(type);
+    if (card === null) {
+      return fallback;
+    }
+    return (type === 'GOD' ? '大神卡 · ' : '咖啡卡 · ') + card.cardName;
+  }
+
+  /** 卡状态：生效中显示剩余天数，否则未开通 */
+  private cardStatus(type: string): string {
+    const card: MemberCard | null = this.activeCard(type);
+    if (card === null) {
+      return '未开通';
+    }
+    return '剩余 ' + card.remainDays + ' 天';
   }
 
   private tip(msg: string): void {
@@ -270,7 +342,7 @@ struct WOWMemberPage {
   statsRow() {
     Column() {
       Row() {
-        ForEach(this.stats, (s: WowStat, i: number) => {
+        ForEach(this.statList(), (s: WowStat, i: number) => {
           if (i > 0) {
             Divider()
               .vertical(true)
@@ -348,11 +420,11 @@ struct WOWMemberPage {
       Stack({ alignContent: Alignment.TopStart }) {
         // 底层小条：咖啡卡
         Row() {
-          Text('咖啡卡 · 30天')
+          Text(this.cardLabel('COFFEE', '咖啡卡 · 30天'))
             .fontSize(12.5)
             .fontWeight(FontWeight.Bold)
             .fontColor('#B23A50')
-          Text('未开通')
+          Text(this.cardStatus('COFFEE'))
             .fontSize(11)
             .fontColor('#C89AA4')
         }
@@ -368,11 +440,11 @@ struct WOWMemberPage {
         Column() {
           Row() {
             Column() {
-              Text('大神卡 · 季卡')
+              Text(this.cardLabel('GOD', '大神卡 · 季卡'))
                 .fontSize(15)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#FFFFFF')
-              Text('剩余 0 天 · 未开通')
+              Text(this.cardStatus('GOD'))
                 .fontSize(10.5)
                 .fontColor('#C7FFFFFF')
                 .margin({ top: 5 })
@@ -380,7 +452,7 @@ struct WOWMemberPage {
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
 
-            Text('立即开通')
+            Text(this.activeCard('GOD') === null ? '立即开通' : '立即续费')
               .fontSize(11)
               .fontWeight(FontWeight.Bold)
               .fontColor('#D4001F')

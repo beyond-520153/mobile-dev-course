@@ -22,6 +22,12 @@ public final class RedisKeyConstants {
     /** 分类+餐品列表缓存（点餐首页） */
     public static final String CATEGORY_LIST = "kfc:category:list";
 
+    /** 会员概要缓存：kfc:member:summary:{userId} */
+    public static final String MEMBER_SUMMARY_PREFIX = "kfc:member:summary:";
+
+    /** 会员概要缓存有效期：60 秒（开卡 / 累计 V金 会主动失效，这里只是兜底） */
+    public static final long MEMBER_SUMMARY_TTL_SECONDS = 60L;
+
     /** 登录 token 有效期：2 小时 */
     public static final long TOKEN_TTL_SECONDS = 2 * 60 * 60L;
 

@@ -12,6 +12,7 @@ import com.example.kfc.repository.OrderItemRepository;
 import com.example.kfc.repository.OrderRepository;
 import com.example.kfc.service.AddressService;
 import com.example.kfc.service.CartItemService;
+import com.example.kfc.service.MemberService;
 import com.example.kfc.service.OrderItemService;
 import com.example.kfc.service.OrderService;
 import com.example.kfc.service.ProductService;
@@ -47,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final AddressService addressService;
     private final UserService userService;
     private final OrderItemService orderItemService;
+    private final MemberService memberService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             OrderItemRepository orderItemRepository,
@@ -54,7 +56,8 @@ public class OrderServiceImpl implements OrderService {
                             ProductService productService,
                             AddressService addressService,
                             UserService userService,
-                            OrderItemService orderItemService) {
+                            OrderItemService orderItemService,
+                            MemberService memberService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartItemService = cartItemService;
@@ -62,6 +65,7 @@ public class OrderServiceImpl implements OrderService {
         this.addressService = addressService;
         this.userService = userService;
         this.orderItemService = orderItemService;
+        this.memberService = memberService;
     }
 
     @Override

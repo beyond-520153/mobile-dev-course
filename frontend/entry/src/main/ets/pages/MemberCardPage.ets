@@ -1,16 +1,10 @@
 import { Theme } from '../common/Constants';
 import { User } from '../model/User';
 import { UserApi } from '../api/UserApi';
+import { MemberCard, MemberPlan, MemberSummary } from '../model/Member';
+import { MemberApi } from '../api/MemberApi';
 import { Icons, VectorIcon } from '../components/VectorIcon';
 import { EntryTabBar } from '../components/EntryTabBar';
-
-/** 大神卡套餐档位 */
-interface CardPlan {
-  name: string;
-  price: string;
-  origin: string;
-  days: string;
-}
 
 /** 特权行 */
 interface Privilege {
@@ -19,10 +13,20 @@ interface Privilege {
   desc: string;
 }
 
-const CARD_PLANS: CardPlan[] = [
-  { name: '季卡', price: '30', origin: '38', days: '90 天' },
-  { name: '年卡', price: '100', origin: '108', days: '365 天' },
-  { name: '月卡', price: '19', origin: '25', days: '30 天' }
+/**
+ * 接口拿不到时的兜底档位（与 V4__member.sql 的种子数据一致）
+ *
+ * 只在后端没起 / 请求失败时用，正常路径一定走 /api/member/plans。
+ */
+const FALLBACK_PLANS: MemberPlan[] = [
+  { id: 1, code: 'GOD_SEASON', cardType: 'GOD', name: '季卡', months: 3,
+    price: 30, originPrice: 38, privilegeNum: 11, days: 90 },
+  { id: 2, code: 'GOD_YEAR', cardType: 'GOD', name: '年卡', months: 12,
+    price: 100, originPrice: 108, privilegeNum: 11, days: 365 },
+  { id: 3, code: 'GOD_MONTH', cardType: 'GOD', name: '月卡', months: 1,
+    price: 19, originPrice: 25, privilegeNum: 11, days: 30 },
+  { id: 4, code: 'COFFEE_30', cardType: 'COFFEE', name: '咖啡卡 · 30天', months: 1,
+    price: 12, originPrice: 15, privilegeNum: 8, days: 30 }
 ];
 
 const GOD_PRIVS: Privilege[] = [
@@ -56,11 +60,20 @@ struct MemberCardPage {
 
   @State user: User | null = null;
 
+  /** 会员概要（判断是否已持卡 / 剩余天数） */
+  @State summary: MemberSummary | null = null;
+
+  /** 当前 tab 的在售档位（接口优先，失败时回落到 FALLBACK_PLANS） */
+  @State planData: MemberPlan[] = [];
+
   /** 当前档位 tab */
   @State cardTab: string = '大神卡';
 
   /** 当前选中的套餐下标 */
   @State planIdx: number = 0;
+
+  /** 开通请求进行中，防连点 */
+  @State buying: boolean = false;
 
   /** 主视觉红皇冠画布 */
   private crownCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
@@ -70,14 +83,30 @@ struct MemberCardPage {
   }
 
   private async load(): Promise<void> {
+    await this.loadPlans();
     if (this.userId <= 0) {
       this.user = null;
+      this.summary = null;
       return;
+    }
+    try {
+      this.summary = await MemberApi.summary(this.userId);
+    } catch (err) {
+      this.summary = null;
     }
     try {
       this.user = await UserApi.detail(this.userId);
     } catch (err) {
       this.user = null;
+    }
+  }
+
+  /** 拉当前 tab 的在售档位；失败就留空，界面会走兜底数据 */
+  private async loadPlans(): Promise<void> {
+    try {
+      this.planData = await MemberApi.plans(this.isGod() ? 'GOD' : 'COFFEE');
+    } catch (err) {
+      this.planData = [];
     }
   }
 
@@ -93,12 +122,92 @@ struct MemberCardPage {
     return nick !== undefined && nick.length > 0 ? nick : this.user.username;
   }
 
-  private plan(): CardPlan {
-    return CARD_PLANS[this.planIdx];
+  /** 当前 tab 的档位列表；接口没返回就用兜底，页面不会空着 */
+  private planList(): MemberPlan[] {
+    if (this.planData.length > 0) {
+      return this.planData;
+    }
+    const type: string = this.isGod() ? 'GOD' : 'COFFEE';
+    const out: MemberPlan[] = [];
+    for (let i = 0; i < FALLBACK_PLANS.length; i++) {
+      if (FALLBACK_PLANS[i].cardType === type) {
+        out.push(FALLBACK_PLANS[i]);
+      }
+    }
+    return out;
+  }
+
+  private plan(): MemberPlan {
+    const list: MemberPlan[] = this.planList();
+    if (list.length === 0) {
+      return FALLBACK_PLANS[0];
+    }
+    const idx: number = this.planIdx < list.length ? this.planIdx : 0;
+    return list[idx];
+  }
+
+  /** 用户条副标题：已持卡报剩余天数，未持卡报卖点 */
+  private subTitle(): string {
+    const card: MemberCard | null = this.holdingCard();
+    if (card !== null) {
+      return (this.isGod() ? '大神卡' : '咖啡卡') + '生效中 · 剩余 ' + card.remainDays + ' 天';
+    }
+    return this.isGod() ? '开通大神卡 立享 ' + this.privCount() + ' 项特权' : '开通咖啡卡 天天 9.9 元';
+  }
+
+  /** 价格去掉多余的 .00，非整数保留两位 */
+  private priceText(value: number): string {
+    return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2);
   }
 
   private afterCoupon(): string {
-    return (Number(this.plan().price) - 5).toString();
+    return this.priceText(Number(this.plan().price) - 5);
+  }
+
+  /** 当前 tab 的特权条数（取该 tab 第一个档位的配置） */
+  private privCount(): number {
+    const list: MemberPlan[] = this.planList();
+    if (list.length > 0) {
+      return list[0].privilegeNum;
+    }
+    return this.isGod() ? 11 : 8;
+  }
+
+  /** 当前 tab 已持有的卡 */
+  private holdingCard(): MemberCard | null {
+    if (this.summary === null) {
+      return null;
+    }
+    const type: string = this.isGod() ? 'GOD' : 'COFFEE';
+    for (let i = 0; i < this.summary.cards.length; i++) {
+      if (this.summary.cards[i].cardType === type) {
+        return this.summary.cards[i];
+      }
+    }
+    return null;
+  }
+
+  /** 开通 / 续费：未登录先登录，成功后就地刷新概要 */
+  private async buy(): Promise<void> {
+    if (this.buying) {
+      return;
+    }
+    if (this.userId <= 0) {
+      this.tip('请先登录再开通');
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/LoginPage' });
+      return;
+    }
+    const wasHolding: boolean = this.holdingCard() !== null;
+    this.buying = true;
+    try {
+      this.summary = await MemberApi.open(this.userId, this.plan().code);
+      const name: string = this.isGod() ? '大神卡' : '咖啡卡';
+      this.tip(wasHolding ? name + '续费成功' : name + '开通成功');
+    } catch (err) {
+      this.tip(`${err}`.replace('Error: ', ''));
+    } finally {
+      this.buying = false;
+    }
   }
 
   private privs(): Privilege[] {
@@ -205,7 +314,7 @@ struct MemberCardPage {
           .fontSize(14.5)
           .fontWeight(FontWeight.Bold)
           .fontColor('#1A1A1A')
-        Text(this.isGod() ? '开通大神卡 立享 11 项特权' : '开通咖啡卡 天天 9.9 元')
+        Text(this.subTitle())
           .fontSize(11)
           .fontColor('#9A9A9A')
           .margin({ top: 4 })
@@ -263,7 +372,12 @@ struct MemberCardPage {
     .padding({ top: 12 })
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
+      if (this.cardTab === label) {
+        return;
+      }
       this.cardTab = label;
+      this.planIdx = 0;
+      this.loadPlans();
     })
   }
 
@@ -341,7 +455,7 @@ struct MemberCardPage {
   @Builder
   plans() {
     Row() {
-      ForEach(CARD_PLANS, (p: CardPlan, i: number) => {
+      ForEach(this.planList(), (p: MemberPlan, i: number) => {
         Column() {
           Text(p.name)
             .fontSize(12)
@@ -352,7 +466,7 @@ struct MemberCardPage {
               .fontWeight(FontWeight.Bold)
               .fontColor(this.planIdx === i ? Theme.PRIMARY : '#1A1A1A')
               .margin({ right: 1 })
-            Text(p.price)
+            Text(this.priceText(Number(p.price)))
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.planIdx === i ? Theme.PRIMARY : '#1A1A1A')
@@ -360,12 +474,12 @@ struct MemberCardPage {
           .alignItems(VerticalAlign.Bottom)
           .margin({ top: 5 })
 
-          Text('¥' + p.origin)
+          Text('¥' + this.priceText(Number(p.originPrice)))
             .fontSize(10)
             .fontColor('#B5B5B5')
             .decoration({ type: TextDecorationType.LineThrough, color: '#B5B5B5' })
             .margin({ top: 4 })
-          Text(p.days)
+          Text(p.days + ' 天')
             .fontSize(10)
             .fontColor('#9A9A9A')
             .margin({ top: 3 })
@@ -382,7 +496,7 @@ struct MemberCardPage {
         .onClick(() => {
           this.planIdx = i;
         })
-      }, (p: CardPlan) => p.name)
+      }, (p: MemberPlan) => p.code)
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
@@ -392,7 +506,7 @@ struct MemberCardPage {
   @Builder
   privHead() {
     Row() {
-      Text((this.isGod() ? '11' : '8') + ' 特权')
+      Text(this.privCount() + ' 特权')
         .fontSize(14)
         .fontWeight(FontWeight.Bold)
         .fontColor('#1A1A1A')
@@ -459,7 +573,7 @@ struct MemberCardPage {
             .fontSize(11)
             .fontWeight(FontWeight.Bold)
             .fontColor(Theme.PRIMARY)
-          Text(this.plan().price)
+          Text(this.priceText(Number(this.plan().price)))
             .fontSize(20)
             .fontWeight(FontWeight.Bold)
             .fontColor(Theme.PRIMARY)
@@ -484,7 +598,7 @@ struct MemberCardPage {
           this.tip('「赠好友」功能正在开发中');
         })
 
-      Text('立即购买')
+      Text(this.holdingCard() === null ? '立即购买' : '立即续费')
         .fontSize(14.5)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
@@ -495,7 +609,7 @@ struct MemberCardPage {
         .backgroundColor(Theme.PRIMARY)
         .margin({ left: 10 })
         .onClick(() => {
-          this.tip('「立即购买」功能正在开发中');
+          this.buy();
         })
     }
     .width('100%')
