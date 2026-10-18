@@ -433,6 +433,18 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 - **路由注册**：代码里 8 个跳转目标全部命中 `main_pages.json`；`EntryAbility` 已改为加载 `pages/EntryPage`。
 - **AppStorage 键**：`pickupType` 只在 `EntryPage`（写）与 `Index`（读）出现，键名一致。
 
+#### 会员模块这轮复跑的结果（脚本 `_kfc_audit_fields.py`，2026-10-18）
+
+| 检查项 | 结果 |
+|---|---|
+| VO ↔ model 字段集合 | **10/10 通过**（含新增 MemberSummary / MemberCard / MemberPlan） |
+| 请求 DTO ↔ 前端 body | **3/3 通过**（LoginBody / RegisterBody / MemberOpenBody） |
+| 后端端点 ↔ 前端调用 | 42 个端点，前端 21 条路径**全部命中**；反查无「前端调了后端没有」 |
+| 路由注册 ↔ 跳转目标 | `main_pages.json` 10 页，代码里所有 `'pages/Xxx'` 目标全部已注册，无孤儿页 |
+
+唯一「后端有、前端没调」的是 `GET /api/order-items`（含 `/{id}`）——**这是设计如此**：
+订单明细随 `OrderVO.items` 一起返回，单独那个端点留给后台/调试用。
+
 ---
 
 ## 十、注意事项 / 踩过的坑
