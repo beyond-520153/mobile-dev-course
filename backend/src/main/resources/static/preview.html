@@ -59,7 +59,17 @@ body{
 /* ---------------- 首页（选餐厅落地页）---------------- */
 .home{flex:1;overflow-y:auto;background:var(--bg);scrollbar-width:none}
 .home::-webkit-scrollbar{display:none}
-.home-banner{width:100%;height:260px;display:block;object-fit:cover}
+.home-banner{position:relative;width:100%;height:260px;overflow:hidden;
+  background:linear-gradient(160deg,#F5123C 0%,#E40030 46%,#B00024 100%)}
+.hb-mask{position:absolute;inset:0;background:radial-gradient(120% 80% at 82% 18%,rgba(255,255,255,.22),transparent 60%)}
+.hb-txt{position:absolute;left:24px;top:34px;color:#fff}
+.hb-en{font-size:46px;font-weight:800;font-style:italic;letter-spacing:1px;line-height:1}
+.hb-cn{margin-top:6px;font-size:17px;font-weight:700;letter-spacing:6px}
+.hb-slogan{margin-top:10px;font-size:12px;opacity:.9;letter-spacing:2px}
+.hb-ring{position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.18)}
+.hb-ring.r1{width:190px;height:190px;right:-44px;top:-30px}
+.hb-ring.r2{width:130px;height:130px;right:36px;top:96px;border-color:rgba(255,255,255,.14)}
+.hb-ring.r3{width:64px;height:64px;right:-8px;bottom:26px;background:rgba(255,255,255,.1);border:0}
 .privacy-pill{
   position:absolute;right:15px;top:51px;height:19px;padding:0 10px;border-radius:9.4px;
   background:rgba(0,0,0,.3);color:#fff;font-size:10.4px;display:flex;align-items:center;gap:3px;
@@ -71,7 +81,7 @@ body{
   box-shadow:var(--shadow);overflow:hidden;
 }
 .user-row{
-  height:62px;background:#E6E6E6;border-radius:var(--r) var(--r) 0 0;
+  height:62px;background:#fff;border-radius:var(--r) var(--r) 0 0;
   display:flex;align-items:center;padding:0 12.5px;cursor:pointer;
 }
 .user-row .ava{width:37px;height:37px;border-radius:50%;border:1px solid #fff;background:#fff;margin-right:11.4px;flex:none}
@@ -114,7 +124,7 @@ body{
   color:var(--red);font-size:12.5px;font-weight:500;background:#fff;display:flex;align-items:center;cursor:pointer;
 }
 .to-close{
-  position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:24px;height:24px;
+  position:absolute;right:4px;top:-9px;width:22px;height:22px;
   border-radius:50%;background:rgba(209,209,209,.16);display:flex;align-items:center;justify-content:center;
   cursor:pointer;color:#999;
 }
@@ -387,6 +397,20 @@ body{
   border-top:.5px solid #F5F5F5;margin-top:10px;height:40px}
 .acard .lnk{display:inline-flex;align-items:center;font-size:11.4px;color:#666;cursor:pointer;white-space:nowrap}
 .acard .lnk svg{width:11px;height:11px;margin-right:3px;color:#C9C9C9}
+
+/* 地图占位：官方 map.png 是极小的切片图，拉伸会糊，改用矢量风网格底图 */
+.maparea{position:relative;height:150px;overflow:hidden;background:#EEF1EC}
+.map-grid{position:absolute;inset:0;
+  background-image:linear-gradient(#E4E8E2 1px,transparent 1px),
+                   linear-gradient(90deg,#E4E8E2 1px,transparent 1px);
+  background-size:38px 38px}
+.maparea .road{position:absolute;background:#fff;box-shadow:0 0 0 1px #E2E6E0}
+.maparea .r-h{left:0;right:0;top:74px;height:12px}
+.maparea .r-v{top:0;bottom:0;left:170px;width:12px}
+.maparea .blk{position:absolute;background:#E3E8E0;border-radius:3px;box-shadow:0 0 0 1px #DBE0D8}
+.maparea .pin{position:absolute;left:50%;top:46%;transform:translate(-50%,-88%);
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
+.maparea .pin svg{width:28px;height:28px;color:#E40030}
 </style>
 </head>
 <body>
@@ -527,7 +551,15 @@ function viewEntry() {
                        : '成为肯德基会员享更多优惠';
   return '' +
   '<div class="home">' +
-    '<img class="home-banner" src="/images/kfc/banner_default.png" alt="">' +
+    '<div class="home-banner">' +
+      '<div class="hb-mask"></div>' +
+      '<div class="hb-txt">' +
+        '<div class="hb-en">KFC</div>' +
+        '<div class="hb-cn">肯德基</div>' +
+        '<div class="hb-slogan">吮指美味 · 随时随地</div>' +
+      '</div>' +
+      '<div class="hb-ring r1"></div><div class="hb-ring r2"></div><div class="hb-ring r3"></div>' +
+    '</div>' +
     '<div class="privacy-pill" data-act="privacy">隐私政策 ' + svg(P.chev) + '</div>' +
     '<div class="store-card">' +
       '<div class="user-row" data-act="user">' +
@@ -578,8 +610,13 @@ function viewStores() {
   '<div class="login-tip"><span class="dot">i</span>登录后点餐可获赠V金哦~' +
     '<span class="go" data-act="login">' + (S.user ? '已登录' : '立即登录') + '</span></div>' +
   '<div class="maparea">' +
-    '<img src="/images/kfc/map.png" alt="">' +
-    '<img class="pin" src="/images/kfc/noLocation.png" alt="">' +
+    '<div class="map-grid"></div>' +
+    '<div class="road r-h"></div><div class="road r-v"></div>' +
+    '<div class="blk" style="left:18px;top:16px;width:96px;height:42px"></div>' +
+    '<div class="blk" style="left:214px;top:14px;width:132px;height:48px"></div>' +
+    '<div class="blk" style="left:26px;top:100px;width:112px;height:36px"></div>' +
+    '<div class="blk" style="left:238px;top:104px;width:104px;height:32px"></div>' +
+    '<div class="pin">' + svg(P.addr) + '</div>' +
     '<div class="locbtn" data-act="refresh">' + svg(P.loc) + '</div>' +
   '</div>' +
   '<div class="storetabs">' +

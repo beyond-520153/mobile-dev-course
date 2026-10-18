@@ -1,4 +1,4 @@
-import { Constants, StoreInfo, Theme, pickupLabel } from '../common/Constants';
+import { StoreInfo, Theme, pickupLabel } from '../common/Constants';
 import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
@@ -16,8 +16,6 @@ struct StorePage {
   @StorageLink('userId') userId: number = 0;
   @State tabSel: number = 0;
   @State keyword: string = '';
-
-  private base: string = Constants.BASE_URL;
 
   private notify(msg: string): void {
     try {
@@ -154,28 +152,55 @@ struct StorePage {
 
   @Builder
   mapArea() {
+    // 官方 map.png 是极小的切片图，拉伸会糊；这里画矢量风底图（浅灰网格 + 主干道 + 红色定位针）
     Stack({ alignContent: Alignment.Center }) {
-      Image(this.base + '/images/kfc/map.png')
+      Column()
         .width('100%')
         .height('100%')
-        .objectFit(ImageFit.Cover)
-      Image(this.base + '/images/kfc/noLocation.png')
-        .width(26)
-        .height(36)
-      Row() {
-        Text('◎').fontSize(14).fontColor(Theme.TEXT_SUB)
+        .backgroundColor('#EEF1EC')
+
+      // 横竖两条主干道
+      Column()
+        .width('100%')
+        .height(11)
+        .backgroundColor('#FFFFFF')
+        .position({ x: 0, y: 74 })
+
+      Column()
+        .width(11)
+        .height('100%')
+        .backgroundColor('#FFFFFF')
+        .position({ x: 170, y: 0 })
+
+      // 街区
+      Column().width(96).height(42).borderRadius(3).backgroundColor('#E3E8E0')
+        .position({ x: 18, y: 16 })
+      Column().width(132).height(48).borderRadius(3).backgroundColor('#E3E8E0')
+        .position({ x: 214, y: 14 })
+      Column().width(112).height(36).borderRadius(3).backgroundColor('#E3E8E0')
+        .position({ x: 26, y: 100 })
+      Column().width(104).height(32).borderRadius(3).backgroundColor('#E3E8E0')
+        .position({ x: 238, y: 104 })
+
+      // 定位针（红色矢量）
+      VectorIcon({ path: Icons.LOCATION, iconSize: 28, color: Theme.PRIMARY })
+        .position({ x: 181, y: 60 })
+
+      // 重新定位按钮
+      Stack() {
+        VectorIcon({ path: Icons.LOCATION, iconSize: 15, color: Theme.TEXT_SUB })
       }
       .width(30)
       .height(30)
       .borderRadius(15)
-      .justifyContent(FlexAlign.Center)
       .backgroundColor('#FFFFFF')
-      .position({ x: 344, y: 108 })
+      .position({ x: 344, y: 106 })
       .onClick(() => this.notify('已按定位刷新附近餐厅'))
     }
     .width('100%')
     .height(150)
-    .backgroundColor('#F2F2F2')
+    .backgroundColor('#EEF1EC')
+    .clip(true)
   }
 
   @Builder

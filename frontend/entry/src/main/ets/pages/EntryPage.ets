@@ -65,10 +65,37 @@ struct EntryPage {
   @Builder
   bannerArea() {
     Stack({ alignContent: Alignment.TopEnd }) {
-      Image(this.base + '/images/kfc/banner_default.png')
-        .width('100%')
-        .height(260)
-        .objectFit(ImageFit.Cover)
+      // 官方首页横幅取自服务端配置，默认图只是占位条纹；
+      // 这里直接用品牌红渐变 + 字标，视觉上更接近线上实况
+      Stack({ alignContent: Alignment.TopStart }) {
+        Column() {
+          Text('KFC')
+            .fontSize(46)
+            .fontWeight(FontWeight.Bold)
+            .fontStyle(FontStyle.Italic)
+            .fontColor('#FFFFFF')
+          Text('肯德基')
+            .fontSize(17)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+            .letterSpacing(6)
+            .margin({ top: 6 })
+          Text('吮指美味 · 随时随地')
+            .fontSize(12)
+            .fontColor('rgba(255,255,255,0.9)')
+            .letterSpacing(2)
+            .margin({ top: 10 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 24, top: 34 })
+      }
+      .width('100%')
+      .height(260)
+      .linearGradient({
+        angle: 160,
+        colors: [['#F5123C', 0], ['#E40030', 0.46], ['#B00024', 1]]
+      })
+
       Row() {
         Text('隐私政策').fontSize(10.4).fontColor('#FFFFFF')
         VectorIcon({ path: Icons.CHEVRON, iconSize: 8, color: '#FFFFFF' })
@@ -110,7 +137,7 @@ struct EntryPage {
     .width('100%')
     .height(62)
     .padding({ left: 12.5, right: 12.5 })
-    .backgroundColor(this.userId > 0 ? '#FAF7F3' : '#E6E6E6')
+    .backgroundColor('#FFFFFF')
     .borderRadius({ topLeft: Theme.RADIUS, topRight: Theme.RADIUS })
     .onClick(() => {
       if (this.userId > 0) {
