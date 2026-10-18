@@ -7,6 +7,8 @@
     "pages/OrderDetailPage",
     "pages/AddressPage",
     "pages/MinePage",
-    "pages/LoginPage"
+    "pages/LoginPage",
+    "pages/WOWMemberPage",
+    "pages/MemberCardPage"
   ]
 }

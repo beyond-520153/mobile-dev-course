@@ -1,5 +1,6 @@
-import { Constants } from '../common/Constants';
+import { Constants, Theme } from '../common/Constants';
 import { Icons, VectorIcon } from '../components/VectorIcon';
+import { EntryTabBar } from '../components/EntryTabBar';
 import { ProductApi } from '../api/ProductApi';
 import { Category } from '../model/Category';
 import { Product } from '../model/Product';
@@ -33,6 +34,9 @@ interface Channel {
   type: string;
 }
 
+/** 顶栏频道：只切高亮，菜单数据仍是肯德基那一套 */
+const CHANNEL_TABS: string[] = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟', '甜品站', 'KPRO'];
+
 /**
  * 取餐方式入口页（应用启动页）
  *
@@ -43,9 +47,9 @@ interface Channel {
  *   → APP热卖 / 大神卡专区 → 两列商品网格 → 两张券卡
  *   → 深色底部 tab（首页 / 百胜出品 / AI点餐 / 大神卡 / 会员中心）
  *
- * 两点按需求刻意留白：
- *   1. 顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏暂不做；
- *   2. 底部 tab 只做入口外观，点击提示「功能正在开发中」，不接业务。
+ * 顶部频道栏（肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟 …）按参考图做成
+ * 红底上一条半透明胶囊 + 右端圆钮；底部 tab 里「大神卡」「会员中心」
+ * 已接真实页面，其余三项仍是占位提示。
  *
  * 三个取餐通道进入的是同一个点餐页（pages/Index），只把选择写进
  * AppStorage 的 pickupType，点餐页顶部据此显示取餐方式文案。
@@ -60,6 +64,9 @@ struct EntryPage {
   /** 当前陈列 tab：HOT=APP热卖，VIP=大神卡专区 */
   @State hotTab: string = 'HOT';
 
+  /** 顶栏当前频道 */
+  @State channel: string = '肯德基';
+
   /** 陈列卡（来自真实菜单） */
   @State cards: HotCard[] = [];
 
@@ -68,6 +75,9 @@ struct EntryPage {
 
   /** 头部插画画布 */
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
+
+  /** 频道条横向滚动控制器 */
+  private chScroller: Scroller = new Scroller();
 
   /** 画布缩放系数与偏移（设计稿坐标系 390 x 214） */
   private sc: number = 1;
@@ -376,6 +386,89 @@ struct EntryPage {
 
   /* ---------------------------- 分块 UI ---------------------------- */
 
+  /**
+   * 0. 顶栏频道条
+   *
+   * 红底上一条半透明白胶囊（50% 白），选中项是纯白胶囊 + 红字；
+   * 胶囊右端用 26vp 渐变收到圆形菜单钮，暗示还有更多品牌可以横滑。
+   * 点击只切高亮与 hero 语义，菜单数据始终是肯德基那一套。
+   */
+  @Builder
+  channelBar() {
+    Row() {
+      Stack({ alignContent: Alignment.End }) {
+        Scroll(this.chScroller) {
+          Row() {
+            ForEach(CHANNEL_TABS, (c: string) => {
+              Text(c)
+                .fontSize(13)
+                .fontWeight(this.channel === c ? FontWeight.Bold : FontWeight.Normal)
+                .fontColor(this.channel === c ? Theme.PRIMARY : '#FFFFFF')
+                .height(30)
+                .padding({ left: this.channel === c ? 12 : 13, right: this.channel === c ? 12 : 13 })
+                .borderRadius(15)
+                .backgroundColor(this.channel === c ? '#FFFFFF' : Color.Transparent)
+                .onClick(() => {
+                  this.channel = c;
+                })
+            }, (c: string) => c)
+          }
+          .height('100%')
+          .alignItems(VerticalAlign.Center)
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
+        .width('100%')
+        .height('100%')
+
+        // 右端渐隐：滑出去的频道淡出，而不是被硬切一刀
+        Text('')
+          .width(26)
+          .height('100%')
+          .linearGradient({
+            angle: 90,
+            colors: [['#00F18095', 0.0], ['#FFF18095', 1.0]]
+          })
+      }
+      .layoutWeight(1)
+      .height(34)
+      .borderRadius(17)
+      .backgroundColor('#F18095')
+      .clip(true)
+
+      // 右端圆钮（三横线）
+      Column() {
+        Text('').width(15).height(2).borderRadius(1).backgroundColor('#FFFFFF')
+        Text('')
+          .width(15)
+          .height(2)
+          .borderRadius(1)
+          .backgroundColor('#FFFFFF')
+          .margin({ top: 3 })
+        Text('')
+          .width(15)
+          .height(2)
+          .borderRadius(1)
+          .backgroundColor('#FFFFFF')
+          .margin({ top: 3 })
+      }
+      .width(34)
+      .height(34)
+      .borderRadius(17)
+      .backgroundColor('#F0758C')
+      .justifyContent(FlexAlign.Center)
+      .margin({ left: 11 })
+      .onClick(() => {
+        this.notify('更多品牌正在接入中');
+      })
+    }
+    .width('100%')
+    .height(60)
+    .padding({ left: 16, right: 12 })
+    .backgroundColor(Theme.PRIMARY)
+    .alignItems(VerticalAlign.Center)
+  }
+
   /** 1. 红色头部 */
   @Builder
   hero() {
@@ -651,7 +744,7 @@ struct EntryPage {
     .borderRadius(11)
     .shadow({ radius: 8, color: '#0C000000', offsetX: 0, offsetY: 2 })
     .onClick(() => {
-      this.notify('「大神卡」功能正在开发中');
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/MemberCardPage' });
     })
   }
 
@@ -874,122 +967,14 @@ struct EntryPage {
     .padding({ left: 9, right: 9, top: 9, bottom: 14 })
   }
 
-  /** 8. 深色底部 tab（中间 AI 点餐凸起） */
-  @Builder
-  entryTabBar() {
-    Row() {
-      Column() {
-        Text('K')
-          .fontSize(19)
-          .fontWeight(FontWeight.Bold)
-          .fontStyle(FontStyle.Italic)
-          .fontColor('#E4002B')
-        Text('首页')
-          .fontSize(9.5)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FF5468')
-          .margin({ top: 3 })
-      }
-      .layoutWeight(1)
-      .height(50)
-      .justifyContent(FlexAlign.End)
-
-      Column() {
-        Row() {
-          Text('').width(6).height(6).backgroundColor('#FFFFFF')
-          Text('').width(6).height(6).backgroundColor('#FFFFFF').margin({ left: 2 })
-        }
-        Row() {
-          Text('').width(6).height(6).backgroundColor('#FFFFFF')
-          Text('').width(6).height(6).backgroundColor('#FFFFFF').margin({ left: 2 })
-        }
-        .margin({ top: 2 })
-        Text('百胜出品')
-          .fontSize(9.5)
-          .fontColor('#EDEDED')
-          .margin({ top: 4 })
-      }
-      .layoutWeight(1)
-      .height(50)
-      .justifyContent(FlexAlign.End)
-      .onClick(() => {
-        this.notify('「百胜出品」功能正在开发中');
-      })
-
-      // 中间凸起的 AI 点餐
-      Column() {
-        Stack({ alignContent: Alignment.Center }) {
-          Circle()
-            .width(54)
-            .height(54)
-            .fill('#E4002B')
-            .shadow({ radius: 14, color: '#66000000', offsetX: 0, offsetY: 6 })
-          Text('K')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-        .width(54)
-        .height(54)
-
-        Text('AI点餐')
-          .fontSize(9.5)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FF5468')
-          .margin({ top: 1 })
-      }
-      .layoutWeight(1)
-      .offset({ x: 0, y: -16 })
-      .onClick(() => {
-        this.notify('「AI点餐」功能正在开发中');
-      })
-
-      Column() {
-        VectorIcon({ path: Icons.STAR, iconSize: 17, color: '#FFFFFF' })
-        Text('大神卡')
-          .fontSize(9.5)
-          .fontColor('#EDEDED')
-          .margin({ top: 4 })
-      }
-      .layoutWeight(1)
-      .height(50)
-      .justifyContent(FlexAlign.End)
-      .onClick(() => {
-        this.notify('「大神卡」功能正在开发中');
-      })
-
-      Column() {
-        Text('WOW')
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontStyle(FontStyle.Italic)
-          .fontColor('#FFFFFF')
-        Text('会员中心')
-          .fontSize(9.5)
-          .fontColor('#EDEDED')
-          .margin({ top: 4 })
-      }
-      .layoutWeight(1)
-      .height(50)
-      .justifyContent(FlexAlign.End)
-      .onClick(() => {
-        this.notify('「会员中心」功能正在开发中');
-      })
-    }
-    .width('100%')
-    .height(60)
-    .padding({ bottom: 5 })
-    .alignItems(VerticalAlign.Bottom)
-    .linearGradient({
-      angle: 180,
-      colors: [['#3C3C3C', 0.0], ['#1D1D1D', 1.0]]
-    })
-  }
+  // 8. 深色底部 tab 已抽到 components/EntryTabBar.ets（入口页 / 会员中心 / 大神卡三页共用）
 
   /* ------------------------------ 组装 ------------------------------ */
 
   build() {
     Column() {
+      this.channelBar()
+
       Scroll() {
         Column() {
           this.hero()
@@ -1015,7 +1000,7 @@ struct EntryPage {
       .scrollBar(BarState.Off)
       .align(Alignment.Top)
 
-      this.entryTabBar()
+      EntryTabBar({ active: 'home' })
     }
     .width('100%')
     .height('100%')

@@ -337,6 +337,136 @@
   .tabbar div .ic-svg{height:22px}
   .rows .r .ic{width:28px;display:flex;align-items:center;color:var(--sub)}
   .empty .big{display:flex;align-items:center;justify-content:center;color:var(--hint)}
+  /* ================= 顶栏频道条 =================
+     红底上一条半透明胶囊（白 20%），选中项是白色胶囊 + 红字；
+     右端用 78px 渐隐收到圆钮，暗示还有更多品牌可以横滑。 */
+  .echbar{position:relative;height:60px;background:var(--primary);flex:none}
+  .echpill{position:absolute;left:16px;right:57px;top:13px;height:34px;border-radius:17px;
+    background:rgba(255,255,255,.5);overflow:hidden}
+  .echscroll{display:flex;align-items:center;height:100%;padding:0 2px;overflow-x:auto;scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(90deg,#000 82%,rgba(0,0,0,.3) 95%,transparent 100%);
+    mask-image:linear-gradient(90deg,#000 82%,rgba(0,0,0,.3) 95%,transparent 100%)}
+  .echscroll::-webkit-scrollbar{display:none}
+  .ech{flex:none;display:flex;align-items:center;height:30px;padding:0 13px;color:#fff;
+    font-size:13px;white-space:nowrap;cursor:pointer;letter-spacing:-.2px}
+  .ech.on{background:#fff;color:var(--primary);border-radius:15px;padding:0 12px;font-weight:700}
+  .ech:active{opacity:.7}
+  .echmore{position:absolute;right:12px;top:13px;width:34px;height:34px;border-radius:17px;
+    background:rgba(255,255,255,.46);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;cursor:pointer}
+  .echmore:active{opacity:.65}
+  .echmore i{width:15px;height:2px;border-radius:1px;background:#fff;display:block}
+
+  /* ================= WOW 会员中心 ================= */
+  .wowpage{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F4F4F4}
+  .wowscroll{flex:1;overflow-y:auto;scrollbar-width:none}
+  .wowscroll::-webkit-scrollbar{display:none}
+  .wowhead{position:relative;height:250px;overflow:hidden;
+    background:linear-gradient(170deg,#EBEBEB 0%,#F4F4F4 100%)}
+  .wowhead .fig{position:absolute;right:-4px;bottom:0;width:206px;height:220px;display:block}
+  .wowtop{position:absolute;left:0;right:0;top:12px;display:flex;justify-content:flex-end;
+    gap:2px;padding:0 10px}
+  .wowtop .ic{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    color:#4E4E4E;position:relative;cursor:pointer}
+  .wowtop .ic .dot{position:absolute;right:6px;top:4px;width:6px;height:6px;border-radius:3px;background:#E4002B}
+  .wowpill{position:absolute;left:18px;top:76px;display:inline-flex;align-items:center;
+    height:34px;padding:0 14px;border-radius:17px;background:#FFE6EC;color:#C8304E;
+    font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:-.2px}
+  .wowpill .ar{margin-left:5px;font-size:14px;font-weight:400}
+  .wowname{position:absolute;left:18px;bottom:44px;display:flex;align-items:center;gap:8px}
+  .wowname .n{font-size:19px;font-weight:800;color:#1A1A1A;letter-spacing:-.4px}
+  .wowname .tag{background:#1F1F1F;color:#FF7A8C;font-size:9.5px;font-weight:700;
+    padding:2.5px 6px;border-radius:3px;letter-spacing:.3px}
+  .wowno{position:absolute;left:18px;bottom:24px;font-size:10.5px;color:#A0A0A0}
+  .wowstats{display:flex;background:#fff;border-radius:12px;margin:0 12px;padding:14px 0;
+    box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  .wowstats .s{flex:1;text-align:center;position:relative}
+  .wowstats .s+.s:before{content:'';position:absolute;left:0;top:5px;bottom:5px;width:1px;background:#F1F1F1}
+  .wowstats .v{font-size:17px;font-weight:800;color:#1A1A1A}
+  .wowstats .k{font-size:10.5px;color:#9A9A9A;margin-top:4px}
+  .wowacts{display:flex;background:#fff;border-radius:12px;margin:10px 12px 0;padding:16px 0 14px}
+  .wowacts .a{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;
+    cursor:pointer;color:#E4002B}
+  .wowacts .a span{font-size:11px;color:#4A4A4A}
+  .wowacts .a:active{opacity:.6}
+  .wowcards{margin:16px 12px 0}
+  .wowcards .stack{position:relative}
+  .wowcards .c-mini{height:56px;border-radius:12px;background:#FFF1F4;border:1px solid #FFDCE3;
+    display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+    font-size:12.5px;font-weight:700;color:#B23A50}
+  .wowcards .c-main{position:relative;margin-top:-18px;border-radius:12px;padding:15px 16px 16px;
+    color:#fff;background:linear-gradient(135deg,#EF0038 0%,#C50023 62%,#A8001D 100%);
+    box-shadow:0 8px 18px rgba(228,0,43,.22);cursor:pointer}
+  .wowcards .cm-top{display:flex;align-items:flex-start;justify-content:space-between}
+  .wowcards .cm-name{font-size:15px;font-weight:800;letter-spacing:-.2px}
+  .wowcards .cm-sub{font-size:10.5px;color:rgba(255,255,255,.78);margin-top:5px}
+  .wowcards .cm-open{background:#fff;color:#D4001F;font-size:11px;font-weight:700;
+    padding:5px 11px;border-radius:12px}
+  .wowcards .cm-benefits{display:flex;margin-top:14px;padding-top:13px;
+    border-top:1px solid rgba(255,255,255,.22)}
+  .wowcards .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .wowcards .b b{font-size:13px;font-weight:800;color:#FFD05B}
+  .wowcards .b span{font-size:9.5px;color:rgba(255,255,255,.86)}
+
+  /* ================= 大神卡（付费会员） ================= */
+  .navcity{font-size:12px;color:#666}
+  .mcscroll{flex:1;overflow-y:auto;scrollbar-width:none;background:#F4F4F4}
+  .mcscroll::-webkit-scrollbar{display:none}
+  .mcuser{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:#fff}
+  .mcuser .ava{width:40px;height:40px;border-radius:20px;background:#FFEDF0;color:#E4002B;
+    display:flex;align-items:center;justify-content:center}
+  .mcuser .ava svg{width:22px;height:22px}
+  .mcuser .mcname{font-size:14.5px;font-weight:700;color:#1A1A1A}
+  .mcuser .mcsub{font-size:11px;color:#9A9A9A;margin-top:4px}
+  .mcuser .mclogin{font-size:11.5px;color:#E4002B;border:1px solid #FFD3DA;border-radius:12px;
+    padding:4px 10px;cursor:pointer}
+  .mctabs{display:flex;background:#fff;border-bottom:1px solid #F0F0F0;padding:0 16px}
+  .mctabs div{flex:1;text-align:center;padding:12px 0 10px;font-size:13.5px;color:#8A8A8A;
+    cursor:pointer;position:relative}
+  .mctabs div.on{color:#1A1A1A;font-weight:700}
+  .mctabs div.on:after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:0;
+    width:22px;height:2.5px;border-radius:2px;background:#E4002B}
+  .mcvision{position:relative;height:196px;margin:12px;border-radius:12px;overflow:hidden;
+    background:linear-gradient(150deg,#1B1B1B 0%,#101010 60%,#000 100%);color:#fff}
+  .mcvision .crown{position:absolute;left:22px;top:24px;width:78px;height:57px}
+  .mcvision .mv-txt{position:absolute;right:30px;top:20px;writing-mode:vertical-rl;
+    font-size:26px;font-weight:800;letter-spacing:5px;line-height:1.05;
+    color:#fff;text-shadow:0 2px 10px rgba(228,0,43,.5)}
+  .mcvision .mv-txt span{color:#E4002B}
+  .mcvision .mv-year{position:absolute;right:24px;bottom:12px;font-size:30px;font-weight:800;
+    font-style:italic;color:#E4002B;letter-spacing:-1px;opacity:.95}
+  .mcplans{display:flex;gap:8px;margin:0 12px}
+  .mcplans .plan{flex:1;background:#fff;border-radius:10px;border:1.5px solid transparent;
+    padding:12px 6px 10px;text-align:center;cursor:pointer}
+  .mcplans .plan.on{border-color:#E4002B;background:#FFF7F8}
+  .mcplans .p-name{font-size:12px;color:#666}
+  .mcplans .p-price{font-size:20px;font-weight:800;color:#1A1A1A;margin-top:5px;line-height:1}
+  .mcplans .p-price small{font-size:11px;font-weight:700;margin-right:1px}
+  .mcplans .plan.on .p-price{color:#E4002B}
+  .mcplans .p-org{font-size:10px;color:#B5B5B5;text-decoration:line-through;margin-top:4px}
+  .mcplans .p-days{font-size:10px;color:#9A9A9A;margin-top:3px}
+  .mcsect{display:flex;align-items:center;justify-content:space-between;
+    padding:18px 16px 8px;font-size:14px;font-weight:700;color:#1A1A1A}
+  .mcsect .muted{font-size:11px;font-weight:400;color:#9A9A9A}
+  .mcpriv{margin:0 12px;background:#fff;border-radius:12px;padding:4px 14px}
+  .mcpriv .pv{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #F5F5F5}
+  .mcpriv .pv:last-child{border-bottom:0}
+  .mcpriv .pv-i{width:34px;height:34px;border-radius:17px;background:#FFF1F3;color:#E4002B;
+    display:flex;align-items:center;justify-content:center}
+  .mcpriv .pv-i svg{width:19px;height:19px}
+  .mcpriv b{display:block;font-size:13px;color:#1A1A1A;font-weight:700}
+  .mcpriv span{display:block;font-size:10.5px;color:#9A9A9A;margin-top:3px}
+  .mcbar{flex:none;display:flex;align-items:center;gap:10px;height:60px;padding:0 14px;
+    background:#fff;border-top:1px solid #F0F0F0}
+  .mcbar .mb-p{font-size:20px;font-weight:800;color:#E4002B;line-height:1}
+  .mcbar .mb-p small{font-size:11px;font-weight:700}
+  .mcbar .mb-sub{font-size:10px;color:#9A9A9A;margin-top:3px}
+  .mcbar .mb-gift{font-size:11.5px;color:#666;border:1px solid #E6E6E6;border-radius:14px;
+    padding:5px 11px;cursor:pointer}
+  .mcbar .mb-buy{flex:1;height:42px;border:0;border-radius:21px;background:#E4002B;color:#fff;
+    font-size:14.5px;font-weight:700;cursor:pointer}
+  .mcbar .mb-buy:active{opacity:.85}
+
 </style>
 </head>
 <body>
@@ -385,7 +515,12 @@ const state = {
   addressForm: { receiver:'', phone:'', province:'浙江省', city:'杭州市', district:'临安区', detail:'', isDefault:true },
   loginMode: 'LOGIN',
   loginForm: { username:'demo', password:'123456', nickname:'', phone:'' },
-  busy: false
+  busy: false,
+  /** 顶栏频道：只切高亮，菜单数据仍是肯德基那一套 */
+  channel: '肯德基',
+  /** 大神卡页：大神卡/咖啡卡 tab、三档套餐下标 */
+  cardTab: '大神卡',
+  cardPlan: 0
 };
 
 const DEMO = { username: 'demo', password: '123456' };
@@ -556,7 +691,8 @@ function render() {
   const screen = document.getElementById('screen');
   const views = {
     entry: viewEntry, menu: viewMenu, cart: viewCart, orders: viewOrders,
-    orderDetail: viewOrderDetail, address: viewAddress, mine: viewMine, login: viewLogin
+    orderDetail: viewOrderDetail, address: viewAddress, mine: viewMine, login: viewLogin,
+    wow: viewWow, memberCard: viewMemberCard
   };
   screen.innerHTML = (views[state.view] || viewEntry)();
   bind();
@@ -703,6 +839,31 @@ const TAB_ICON = {
 };
 
 /* 两张券的插图 */
+/* WOW 会员中心顶部与功能入口用到的图标 */
+const WOW_ICON = {
+  bell: `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/>
+    <path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>`,
+  qr: `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h6"/></svg>`,
+  scan: `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3
+    M21 16v3a2 2 0 0 1-2 2h-3M3 12h18"/></svg>`,
+  gear: `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7">
+    <circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1
+    a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1
+    a1.7 1.7 0 0 0-1.2-2.9 2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1
+    a1.7 1.7 0 0 0 2.9-1.2 2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1
+    a1.7 1.7 0 0 0 1.2 2.9 2 2 0 1 1 0 4 1.7 1.7 0 0 0-1.2 2.9z"/></svg>`,
+  car: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linejoin="round"><path d="M5 17h14M4 17v-4l2-5h12l2 5v4"/><path d="M4 13h16"/>
+    <circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg>`,
+  service: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.7.3-1.1 1-1.1 1.8"/>
+    <circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg>`
+};
+
 const COUPON_ICON = {
   scooter: `<svg width="34" height="34" viewBox="0 0 40 40">
       <circle cx="11" cy="29" r="5.4" fill="#E4002B"/><circle cx="11" cy="29" r="2" fill="#FFF"/>
@@ -766,13 +927,28 @@ function cfCards(tab) {
 }
 
 /* 深色底部 tab：AI 点餐是中间凸起的大圆 */
-function entryTabBar() {
+function entryTabBar(active) {
+  const a = active || 'home';
+  const on = k => (a === k ? 'on' : '');
   return `<div class="etabbar">
-    <div class="tb on" data-etab="首页"><div class="k-logo">K</div><span>首页</span></div>
-    <div class="tb" data-etab="百胜出品">${TAB_ICON.square}<span>百胜出品</span></div>
-    <div class="tb ai" data-etab="AI点餐"><div class="ball">K</div><span>AI点餐</span></div>
-    <div class="tb" data-etab="大神卡">${TAB_ICON.crown}<span>大神卡</span></div>
-    <div class="tb" data-etab="WOW会员中心"><div class="wow-logo">WOW</div><span>会员中心</span></div>
+    <div class="tb ${on('home')}" data-egoto="home"><div class="k-logo">K</div><span>首页</span></div>
+    <div class="tb ${on('square')}" data-egoto="square">${TAB_ICON.square}<span>百胜出品</span></div>
+    <div class="tb ai" data-egoto="ai"><div class="ball">K</div><span>AI点餐</span></div>
+    <div class="tb ${on('card')}" data-egoto="card">${TAB_ICON.crown}<span>大神卡</span></div>
+    <div class="tb ${on('wow')}" data-egoto="wow"><div class="wow-logo">WOW</div><span>会员中心</span></div>
+  </div>`;
+}
+
+/* 顶栏频道条：红底上一条半透明胶囊，选中项是白胶囊红字，右端渐隐收进圆钮。
+   390 宽放不下全部品牌，所以整条横滑；点击只切高亮，菜单数据不动。 */
+const CHANNELS = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟', '甜品站', 'KPRO'];
+
+function channelBar() {
+  const items = CHANNELS.map(c =>
+    `<div class="ech ${state.channel === c ? 'on' : ''}" data-ech="${c}">${c}</div>`).join('');
+  return `<div class="echbar">
+    <div class="echpill"><div class="echscroll">${items}</div></div>
+    <div class="echmore" data-echmore="1"><i></i><i></i><i></i></div>
   </div>`;
 }
 
@@ -780,6 +956,7 @@ function viewEntry() {
   const tab = state.entryTab || 'HOT';
   return `
     <div class="entry">
+      ${channelBar()}
       <div class="entry-scroll">
         <div class="ehero">${skylineSvg()}${heroSceneSvg()}</div>
 
@@ -1154,6 +1331,152 @@ function viewMine() {
     ${tabBar('mine')}`;
 }
 
+
+/* ==================== WOW 会员中心 ==================== */
+function wowFigureSvg() {
+  return `<svg class="fig" viewBox="0 0 210 224" aria-hidden="true">
+    <rect x="107" y="80" width="30" height="30" fill="#DCDCDC"/>
+    <circle cx="122" cy="58" r="33" fill="#DCDCDC"/>
+    <path d="M122 100c-34 0-58 21-64 51l-5 73h138l-5-73c-6-30-30-51-64-51z" fill="#DCDCDC"/>
+    <path d="M89 58c0-18 15-33 33-33s33 15 33 33c0 5-1 10-3 14-4-13-16-22-30-22s-26 9-30 22c-2-4-3-9-3-14z"
+          fill="#C9C9C9"/>
+    <path d="M58 151c6-30 30-51 64-51 13 0 25 3 35 9-26-2-50 9-63 28-7 10-11 22-12 35l-22-1z"
+          fill="#C9C9C9"/>
+  </svg>`;
+}
+
+/* 四项数据的占位值：后端还没有会员中心的表，先按官方截图填 */
+function viewWow() {
+  const u = state.user;
+  const name = u ? (u.nickname || u.username) : '未登录';
+  const no = u ? ('NO. ' + String(80000000 + Number(u.id) * 113).replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3')) : '登录后同步会员号';
+  return `<div class="wowpage">
+    <div class="wowscroll">
+      <div class="wowhead">
+        ${wowFigureSvg()}
+        <div class="wowtop">
+          <div class="ic" data-etool="消息中心">${WOW_ICON.bell}<i class="dot"></i></div>
+          <div class="ic" data-etool="会员码">${WOW_ICON.qr}</div>
+          <div class="ic" data-etool="扫一扫">${WOW_ICON.scan}</div>
+          <div class="ic" data-etool="设置">${WOW_ICON.gear}</div>
+        </div>
+        <div class="wowpill" data-etool="会员成就">点亮您的会员成就<span class="ar">›</span></div>
+        <div class="wowname"><span class="n">${esc(name)}</span><span class="tag">WOW会员</span></div>
+        <div class="wowno">${no}</div>
+      </div>
+
+      <div class="wowstats">
+        <div class="s"><div class="v">--</div><div class="k">成就</div></div>
+        <div class="s"><div class="v">5.1万</div><div class="k">V金</div></div>
+        <div class="s"><div class="v">29</div><div class="k">卡券</div></div>
+        <div class="s"><div class="v">0</div><div class="k">余额</div></div>
+      </div>
+
+      <div class="wowacts">
+        <div class="a" data-tab="orders">${ICON.receipt}<span>我的订单</span></div>
+        <div class="a" data-tab="address">${ICON.pin}<span>送餐地址</span></div>
+        <div class="a" data-etool="车辆档案">${WOW_ICON.car}<span>车辆档案</span></div>
+        <div class="a" data-etool="自助服务">${WOW_ICON.service}<span>自助服务</span></div>
+      </div>
+
+      <div class="wowcards">
+        <div class="stack">
+          <div class="c-mini"><span>咖啡卡 · 30天</span><span class="muted">未开通</span></div>
+          <div class="c-main" data-etool="大神卡">
+            <div class="cm-top">
+              <div>
+                <div class="cm-name">大神卡 · 季卡</div>
+                <div class="cm-sub">剩余 0 天 · 未开通</div>
+              </div>
+              <div class="cm-open">立即开通</div>
+            </div>
+            <div class="cm-benefits">
+              <div class="b"><b>免</b><span>满额免外送费</span></div>
+              <div class="b"><b>2</b><span>饮料 2 杯</span></div>
+              <div class="b"><b>6折</b><span>早餐 6 折起</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:16px"></div>
+    </div>
+    ${entryTabBar('wow')}
+  </div>`;
+}
+
+/* ==================== 大神卡（付费会员） ==================== */
+const CARD_PLANS = [
+  { name: '季卡', price: '30', origin: '38', days: '90 天' },
+  { name: '年卡', price: '100', origin: '108', days: '365 天' },
+  { name: '月卡', price: '19', origin: '25', days: '30 天' }
+];
+
+function crownSvg() {
+  return `<svg class="crown" viewBox="0 0 132 96" aria-hidden="true">
+    <path d="M10 78h112L112 26 86 46 66 12 46 46 20 26z" fill="#E4002B"/>
+    <rect x="10" y="82" width="112" height="9" rx="2" fill="#E4002B"/>
+    <circle cx="66" cy="60" r="7" fill="#141414" opacity=".55"/>
+  </svg>`;
+}
+
+function viewMemberCard() {
+  const tab = state.cardTab;
+  const plan = CARD_PLANS[state.cardPlan] || CARD_PLANS[0];
+  const isGod = tab === '大神卡';
+  return navBar('付费会员', 'entry', '<span class="navcity">杭州市 ▾</span>') + `
+    <div class="mcscroll">
+      <div class="mcuser">
+        <div class="ava">${ICON.person}</div>
+        <div style="flex:1">
+          <div class="mcname">${esc(state.user ? (state.user.nickname || state.user.username) : '未登录')}</div>
+          <div class="mcsub">${isGod ? '开通大神卡 立享 11 项特权' : '开通咖啡卡 天天 9.9 元'}</div>
+        </div>
+        <div class="mclogin" data-tab="login">${state.userId ? '已登录' : '去登录'}</div>
+      </div>
+
+      <div class="mctabs">
+        <div class="${isGod ? 'on' : ''}" data-cardtab="大神卡">大神卡</div>
+        <div class="${isGod ? '' : 'on'}" data-cardtab="咖啡卡">咖啡卡</div>
+      </div>
+
+      <div class="mcvision">
+        ${crownSvg()}
+        <div class="mv-txt">${isGod ? '大神卡' : '咖啡卡'}<span>。</span></div>
+        <div class="mv-year">2026</div>
+      </div>
+
+      <div class="mcplans">
+        ${CARD_PLANS.map((p, i) => `
+          <div class="plan ${i === state.cardPlan ? 'on' : ''}" data-plan="${i}">
+            <div class="p-name">${p.name}</div>
+            <div class="p-price"><small>¥</small>${p.price}</div>
+            <div class="p-org">¥${p.origin}</div>
+            <div class="p-days">${p.days}</div>
+          </div>`).join('')}
+      </div>
+
+      <div class="mcsect">
+        <span>${isGod ? '11' : '8'} 特权</span>
+        <span class="muted">规则说明</span>
+      </div>
+      <div class="mcpriv">
+        <div class="pv"><div class="pv-i">${ICON.scooter}</div><div><b>满额免外送费</b><span>单笔满 39 元免配送费</span></div></div>
+        <div class="pv"><div class="pv-i">${ICON.burger}</div><div><b>饮料 2 杯</b><span>每月赠 2 杯中杯饮料</span></div></div>
+        <div class="pv"><div class="pv-i">${ICON.plate}</div><div><b>早餐 6 折起</b><span>工作日 10:30 前可用</span></div></div>
+      </div>
+      <div style="height:12px"></div>
+    </div>
+
+    <div class="mcbar">
+      <div class="mb-l">
+        <div class="mb-p"><small>¥</small>${plan.price}</div>
+        <div class="mb-sub">券后价 ¥${Number(plan.price) - 5}</div>
+      </div>
+      <div class="mb-gift" data-etool="赠好友">赠好友</div>
+      <button class="mb-buy" data-etool="立即购买">立即购买</button>
+    </div>`;
+}
+
 /* ---------- 登录 / 注册 ---------- */
 function viewLogin() {
   const lf = state.loginForm;
@@ -1246,10 +1569,45 @@ function bind() {
     };
   });
 
-  // 入口页其余入口（功能图标 / 会员卡 / 券 / 底部 tab）：本轮只做外观，点了给提示
-  screen.querySelectorAll('[data-etool],[data-etab]').forEach(el => {
+  // 顶栏频道条：只切高亮 + 把选中项滚到可视区中间
+  screen.querySelectorAll('[data-ech]').forEach(el => {
     el.onclick = () => {
-      toast((el.dataset.etool || el.dataset.etab) + '：功能陆续开放');
+      state.channel = el.dataset.ech;
+      render();
+      const cur = document.querySelector('.ech.on');
+      if (cur) cur.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      if (state.channel !== '肯德基') toast(state.channel + ' 频道菜单正在接入，当前展示肯德基菜单');
+    };
+  });
+  screen.querySelectorAll('[data-echmore]').forEach(el => {
+    el.onclick = () => toast('全部分类：肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟 / 甜品站 / KPRO');
+  });
+
+  // 底部 5 tab：大神卡 / 会员中心 接真实页面，首页回入口页，其余保持占位
+  screen.querySelectorAll('[data-egoto]').forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.egoto;
+      if (k === 'card') { go('memberCard'); return; }
+      if (k === 'wow') { go('wow'); return; }
+      if (k === 'home') { go('entry'); return; }
+      toast((k === 'square' ? '百胜出品' : 'AI点餐') + '：功能陆续开放');
+    };
+  });
+
+  // 大神卡页：大神卡 / 咖啡卡 切 tab、三档套餐切换
+  screen.querySelectorAll('[data-cardtab]').forEach(el => {
+    el.onclick = () => { state.cardTab = el.dataset.cardtab; render(); };
+  });
+  screen.querySelectorAll('[data-plan]').forEach(el => {
+    el.onclick = () => { state.cardPlan = Number(el.dataset.plan); render(); };
+  });
+
+  // 入口页其余入口（功能图标 / 会员卡 / 券）：只做外观，点了给提示
+  screen.querySelectorAll('[data-etool]').forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.etool;
+      if (k === '大神卡') { go('memberCard'); return; }
+      toast(k + '：功能陆续开放');
     };
   });
 
