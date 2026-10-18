@@ -2,6 +2,7 @@
   "src": [
     "pages/EntryPage",
     "pages/Index",
+    "pages/StorePage",
     "pages/CartPage",
     "pages/OrderListPage",
     "pages/OrderDetailPage",

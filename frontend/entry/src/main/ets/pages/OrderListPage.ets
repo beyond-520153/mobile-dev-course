@@ -1,18 +1,18 @@
-import { Theme } from '../common/Constants';
-import { DateUtil } from '../common/DateUtil';
+import { StoreInfo, Theme } from '../common/Constants';
 import { Order } from '../model/Order';
+import { OrderItem } from '../model/OrderItem';
 import { OrderDetailParams } from '../model/RouteParams';
 import { OrderApi } from '../api/OrderApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
-import { BottomTabBar } from '../components/BottomTabBar';
 import { ProductThumb } from '../components/ProductThumb';
 import { Icons, VectorIcon } from '../components/VectorIcon';
 
 /**
- * 订单列表页
+ * 我的订单 —— 对齐官方「订单列表」页
  *
- * 顶部按状态筛选（客户端过滤，数据量小不需要后端分页），
- * 每张订单卡按状态给出可执行的动作：支付 / 取消 / 看取餐码。
+ * 顶部白色导航（返回 / 我的订单 / 刷新）
+ * 页签：全部 / 待支付 / 进行中 / 已完成（红色短下划线，和官方一致）
+ * 订单卡：门店名 + 状态 → 餐品行 → 合计 → 操作按钮（胶囊描边 + 红色实心）
  */
 @Entry
 @Component
@@ -91,14 +91,42 @@ struct OrderListPage {
   }
 
   private openDetail(order: Order): void {
-    this.getUIContext().getRouter().pushUrl({
-      url: 'pages/OrderDetailPage',
-      params: new OrderDetailParams(order.id)
-    });
+    try {
+      this.getUIContext().getRouter().pushUrl({
+        url: 'pages/OrderDetailPage',
+        params: new OrderDetailParams(order.id)
+      });
+    } catch (e) {
+      this.toast('页面跳转失败');
+    }
+  }
+
+  private goMenu(): void {
+    try {
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/Index' });
+    } catch (e) {
+      this.toast('页面跳转失败');
+    }
   }
 
   private toast(message: string): void {
-    this.getUIContext().getPromptAction().showToast({ message: message, duration: 1500 });
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message, duration: 1500 });
+    } catch (e) {
+      // 忽略
+    }
+  }
+
+  private back(): void {
+    try {
+      this.getUIContext().getRouter().back();
+    } catch (e) {
+      try {
+        this.getUIContext().getRouter().replaceUrl({ url: 'pages/MinePage' });
+      } catch (e2) {
+        this.toast('返回失败');
+      }
+    }
   }
 
   private filterLabel(code: string): string {
@@ -117,179 +145,196 @@ struct OrderListPage {
   @Builder
   navBar() {
     Row() {
+      Row() {
+        VectorIcon({ path: Icons.ARROW_BACK, iconSize: 20, color: Theme.TEXT })
+      }
+      .width(44)
+      .height(44)
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => this.back())
+
       Text('我的订单')
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
+        .fontSize(16.6)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(Theme.TEXT)
         .layoutWeight(1)
         .textAlign(TextAlign.Center)
 
       Text('刷新')
-        .fontSize(13)
+        .fontSize(12.5)
         .fontColor(Theme.TEXT_SUB)
         .width(44)
-        .textAlign(TextAlign.Center)
-        .onClick(() => {
-          this.load();
-        })
+        .textAlign(TextAlign.End)
+        .onClick(() => this.load())
     }
     .width('100%')
     .height(48)
-    .padding({ left: 4, right: 4 })
-    .backgroundColor(Theme.CARD)
+    .padding({ left: 4, right: 12.5 })
+    .backgroundColor('#FFFFFF')
     .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  tabBar() {
+    Row() {
+      ForEach(this.filters, (code: string) => {
+        Column() {
+          Text(this.filterLabel(code))
+            .fontSize(13.5)
+            .fontWeight(this.filter === code ? FontWeight.Bold : FontWeight.Normal)
+            .fontColor(this.filter === code ? Theme.TEXT : Theme.TEXT_HINT)
+          Row()
+            .width(16)
+            .height(2.6)
+            .borderRadius(2)
+            .backgroundColor(this.filter === code ? Theme.PRIMARY : Color.Transparent)
+            .margin({ top: 6 })
+        }
+        .layoutWeight(1)
+        .height(44)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => {
+          this.filter = code;
+        })
+      }, (code: string) => code)
+    }
+    .width('100%')
+    .backgroundColor('#FFFFFF')
+    .border({ width: { bottom: 0.5 }, color: '#F2F2F2' })
+  }
+
+  @Builder
+  actionButton(label: string, filled: boolean, onTap: () => void) {
+    Text(label)
+      .fontSize(12.5)
+      .fontWeight(filled ? FontWeight.Medium : FontWeight.Normal)
+      .fontColor(filled ? '#FFFFFF' : Theme.TEXT_SUB)
+      .textAlign(TextAlign.Center)
+      .height(30)
+      .padding({ left: 15, right: 15 })
+      .borderRadius(15)
+      .backgroundColor(filled ? Theme.PRIMARY : '#FFFFFF')
+      .border({ width: filled ? 0 : 0.5, color: '#D8D8D8' })
+      .margin({ left: 8 })
+      .onClick(onTap)
+  }
+
+  @Builder
+  thumbStrip(order: Order) {
+    Row() {
+      if (order.items.length === 0) {
+        Text('（无明细）')
+          .fontSize(11.4)
+          .fontColor('#B0B0B0')
+      } else {
+        ForEach(order.items.slice(0, 4), (item: OrderItem) => {
+          Column() {
+            ProductThumb({ image: item.productImage ?? '', thumbSize: 56 })
+          }
+          .margin({ right: 8 })
+        }, (item: OrderItem) => `${order.id}-${item.id}`)
+      }
+    }
+    .width('100%')
   }
 
   @Builder
   orderCard(order: Order) {
     Column() {
       Row() {
-        Text(`订单号 ${order.orderNo}`)
-          .fontSize(11)
-          .fontColor(Theme.TEXT_HINT)
+        VectorIcon({ path: Icons.STORE, iconSize: 14, color: Theme.TEXT })
+        Text(StoreInfo.NAME)
+          .fontSize(13.5)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.TEXT)
+          .margin({ left: 4 })
           .layoutWeight(1)
-
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(order.statusText)
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(order.status === 'CANCELLED' ? Theme.TEXT_SUB : Theme.PRIMARY)
+          .fontSize(12.5)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(order.status === 'CANCELLED' || order.status === 'COMPLETED'
+            ? Theme.TEXT_HINT : Theme.PRIMARY)
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Divider().color(Theme.DIVIDER).margin({ top: 8, bottom: 8 })
+      Divider().color('#F5F5F5').margin({ top: 10, bottom: 10 })
+
+      this.thumbStrip(order)
 
       Row() {
-        ProductThumb({
-          image: order.items.length > 0 ? (order.items[0].productImage ?? '') : '',
-          thumbSize: 54
-        })
-
-        Column() {
-          Text(order.items.length > 0 ? order.items[0].productName : '（无明细）')
-            .fontSize(14)
+        Text(`${order.orderNo} · 共 ${order.itemCount} 件`)
+          .fontSize(11.4)
+          .fontColor(Theme.TEXT_HINT)
+          .layoutWeight(1)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text('实付')
+          .fontSize(11.4)
+          .fontColor(Theme.TEXT_SUB)
+        Row() {
+          Text('¥')
+            .fontSize(10.4)
+            .fontColor(Theme.TEXT)
+            .fontWeight(FontWeight.Bold)
+          Text(`${Number(order.payAmount).toFixed(2)}`)
+            .fontSize(15.6)
             .fontWeight(FontWeight.Bold)
             .fontColor(Theme.TEXT)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .width('100%')
-
-          Text(`共 ${order.itemCount} 件 · ${order.pickupTypeText}`)
-            .fontSize(11)
-            .fontColor(Theme.TEXT_SUB)
-            .margin({ top: 4 })
-
-          Text(DateUtil.formatDateTime(order.createdAt))
-            .fontSize(11)
-            .fontColor(Theme.TEXT_HINT)
-            .margin({ top: 2 })
         }
-        .layoutWeight(1)
-        .margin({ left: 10 })
-        .alignItems(HorizontalAlign.Start)
-
-        Column() {
-          Text('实付')
-            .fontSize(10)
-            .fontColor(Theme.TEXT_HINT)
-          Text(`¥${order.payAmount}`)
-            .fontSize(15)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Theme.PRIMARY)
-        }
-        .alignItems(HorizontalAlign.End)
+        .alignItems(VerticalAlign.Bottom)
+        .margin({ left: 3 })
       }
       .width('100%')
+      .margin({ top: 10 })
       .alignItems(VerticalAlign.Center)
 
       Row() {
         if (order.pickupCode !== undefined && order.pickupCode.length > 0) {
-          Text(`取餐码 ${order.pickupCode}`)
-            .fontSize(12)
-            .fontColor(Theme.PRIMARY)
-            .fontWeight(FontWeight.Bold)
+          Row() {
+            Text('取餐码')
+              .fontSize(11.4)
+              .fontColor(Theme.TEXT_SUB)
+            Text(order.pickupCode)
+              .fontSize(13.5)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Theme.PRIMARY)
+              .margin({ left: 4 })
+          }
+          .alignItems(VerticalAlign.Center)
         }
         Blank()
         if (order.status === 'PENDING_PAYMENT') {
-          Text('取消订单')
-            .fontSize(12)
-            .fontColor(Theme.TEXT_SUB)
-            .textAlign(TextAlign.Center)
-            .width(72)
-            .height(30)
-            .borderRadius(15)
-            .border({ width: 1, color: Theme.DIVIDER })
-            .onClick(() => {
-              this.cancel(order);
-            })
-
-          Text('立即支付')
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
-            .textAlign(TextAlign.Center)
-            .width(72)
-            .height(30)
-            .borderRadius(15)
-            .backgroundColor(Theme.PRIMARY)
-            .margin({ left: 8 })
-            .onClick(() => {
-              this.pay(order);
-            })
+          this.actionButton('取消订单', false, () => this.cancel(order))
+          this.actionButton('去支付', true, () => this.pay(order))
+        } else if (order.status === 'PAID') {
+          this.actionButton('取消订单', false, () => this.cancel(order))
+          this.actionButton('详情', false, () => this.openDetail(order))
         } else {
-          Text('查看详情')
-            .fontSize(12)
-            .fontColor(Theme.TEXT_SUB)
-            .textAlign(TextAlign.Center)
-            .width(72)
-            .height(30)
-            .borderRadius(15)
-            .border({ width: 1, color: Theme.DIVIDER })
-            .onClick(() => {
-              this.openDetail(order);
-            })
+          this.actionButton('详情', false, () => this.openDetail(order))
         }
       }
       .width('100%')
-      .margin({ top: 8 })
+      .margin({ top: 10 })
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding(12)
-    .backgroundColor(Theme.CARD)
-    .borderRadius(10)
-    .onClick(() => {
-      this.openDetail(order);
-    })
+    .padding({ left: 12.5, right: 12.5, top: 13, bottom: 13 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(Theme.RADIUS)
+    .onClick(() => this.openDetail(order))
   }
 
   build() {
     Column() {
       this.navBar()
-
-      Row() {
-        ForEach(this.filters, (code: string) => {
-          Text(this.filterLabel(code))
-            .fontSize(13)
-            .fontWeight(this.filter === code ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.filter === code ? Color.White : Theme.TEXT_SUB)
-            .textAlign(TextAlign.Center)
-            .layoutWeight(1)
-            .height(30)
-            .borderRadius(15)
-            .backgroundColor(this.filter === code ? Theme.PRIMARY : Color.Transparent)
-            .onClick(() => {
-              this.filter = code;
-            })
-        }, (code: string) => code)
-      }
-      .width('100%')
-      .padding({ left: Theme.GAP, right: Theme.GAP, top: 8, bottom: 8 })
-      .backgroundColor(Theme.CARD)
-      .border({ width: { bottom: 1 }, color: Theme.DIVIDER })
+      this.tabBar()
 
       if (this.loading) {
         Column() {
-          LoadingProgress().width(36).height(36).color(Theme.PRIMARY)
+          LoadingProgress().width(34).height(34).color(Theme.PRIMARY)
         }
         .layoutWeight(1)
         .width('100%')
@@ -303,29 +348,27 @@ struct OrderListPage {
         .justifyContent(FlexAlign.Center)
       } else if (this.visibleOrders().length === 0) {
         Column() {
-          VectorIcon({ path: Icons.RECEIPT, iconSize: 48, color: '#D8D8D8' })
+          VectorIcon({ path: Icons.RECEIPT, iconSize: 46, color: '#D8D8D8' })
           Text('还没有订单')
-            .fontSize(13)
+            .fontSize(13.5)
             .fontColor(Theme.TEXT_SUB)
-            .margin({ top: 10 })
+            .margin({ top: 12 })
           Text('去点餐')
-            .fontSize(13)
-            .fontColor(Color.White)
+            .fontSize(12.5)
+            .fontColor('#FFFFFF')
             .textAlign(TextAlign.Center)
-            .width(100)
+            .width(96)
             .height(32)
             .borderRadius(16)
             .backgroundColor(Theme.PRIMARY)
-            .margin({ top: 14 })
-            .onClick(() => {
-              this.getUIContext().getRouter().replaceUrl({ url: 'pages/Index' });
-            })
+            .margin({ top: 16 })
+            .onClick(() => this.goMenu())
         }
         .layoutWeight(1)
         .width('100%')
         .justifyContent(FlexAlign.Center)
       } else {
-        List({ space: 10 }) {
+        List({ space: 9 }) {
           ForEach(this.visibleOrders(), (order: Order) => {
             ListItem() {
               this.orderCard(order)
@@ -334,12 +377,10 @@ struct OrderListPage {
         }
         .layoutWeight(1)
         .width('100%')
-        .padding({ left: Theme.GAP, right: Theme.GAP, top: 10, bottom: 10 })
+        .padding({ left: 8, right: 8, top: 9, bottom: 9 })
         .backgroundColor(Theme.BG)
         .scrollBar(BarState.Off)
       }
-
-      BottomTabBar({ index: 1 })
     }
     .width('100%')
     .height('100%')

@@ -16,6 +16,8 @@ export class CartViewModel {
   static readonly KEY_USER_ID: string = 'userId';
   static readonly KEY_COUNT: string = 'cartCount';
   static readonly KEY_AMOUNT: string = 'cartAmount';
+  /** 当前登录用户显示名，首页/我的页直接用 */
+  static readonly KEY_USER_NAME: string = 'userName';
 
   /** 拉一次后端汇总并写进 AppStorage；网络不通时静默失败，不打断页面 */
   static async refresh(userId: number): Promise<void> {
@@ -48,8 +50,15 @@ export class CartViewModel {
     AppStorage.setOrCreate(CartViewModel.KEY_USER_ID, id);
   }
 
+  /** 登录成功后同时写入 id 与显示名（首页要显示昵称） */
+  static setCurrentUser(id: number, name: string): void {
+    AppStorage.setOrCreate(CartViewModel.KEY_USER_ID, id);
+    AppStorage.setOrCreate(CartViewModel.KEY_USER_NAME, name);
+  }
+
   static clearUser(): void {
     CartViewModel.setCurrentUserId(0);
+    AppStorage.setOrCreate(CartViewModel.KEY_USER_NAME, '');
     CartViewModel.reset();
   }
 }

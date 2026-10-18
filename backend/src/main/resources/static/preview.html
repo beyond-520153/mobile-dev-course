@@ -5,353 +5,403 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KFC 点餐 · 前后端联调预览</title>
 <style>
-  :root{
-    --primary:#E4002B; --primary-dark:#C10023; --accent:#FFC72C;
-    --bg:#F5F5F5; --card:#FFFFFF; --sidebar:#F7F7F7;
-    --text:#1A1A1A; --sub:#8A8A8A; --hint:#B5B5B5; --line:#EFEFEF;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{
-    margin:0;background:#E9EBEE;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-    color:var(--text);display:flex;flex-direction:column;align-items:center;padding:18px 12px 40px;
-  }
-  .page-title{font-size:15px;font-weight:700;color:#333}
-  .page-hint{font-size:12px;color:#777;margin-top:6px;text-align:center;line-height:1.7}
-  .page-hint code{background:#fff;border-radius:4px;padding:1px 5px;font-size:11px}
+/* ==========================================================================
+   肯德基手机端复刻版
+   设计基准取自官方 H5（order.kfc.com.cn/preorder-taro）运行期 CSS：
+   1rem = 40 设计 px（750 设计稿），本文件按 390 视口折算成 CSS px。
+   主色 rgb(228,0,48) = #E40030；正文 rgb(35,30,31)；次要 #666；提示 #999；
+   页面底色 #F8F8F8；卡片圆角 0.5rem = 10.4px；卡片阴影 rgba(217,217,217,.5)。
+   ========================================================================== */
+:root{
+  --red:#E40030; --text:#231E1F; --sub:#666; --hint:#999;
+  --bg:#F8F8F8; --line:#E6E6E6; --r:10.4px;
+  --shadow:0 2px 21px rgba(217,217,217,.5);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0;background:#E9EBEE;
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:var(--text);display:flex;flex-direction:column;align-items:center;padding:18px 12px 40px;
+}
+.page-title{font-size:15px;font-weight:700;color:#333}
+.page-hint{font-size:12px;color:#777;margin-top:6px;text-align:center;line-height:1.7}
+.page-hint code{background:#fff;border-radius:4px;padding:1px 5px;font-size:11px}
 
-  /* 手机外壳 */
-  .phone{
-    width:390px;max-width:100%;height:780px;margin-top:14px;background:var(--bg);
-    border-radius:26px;border:8px solid #22262B;overflow:hidden;display:flex;flex-direction:column;
-    box-shadow:0 18px 40px rgba(0,0,0,.22);position:relative;
-  }
-  .statusbar{
-    height:26px;background:var(--primary);color:#fff;font-size:11px;
-    display:flex;align-items:center;justify-content:space-between;padding:0 14px;flex:none;
-  }
-  .screen{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+/* 手机外壳 */
+.phone{
+  width:390px;max-width:100%;height:780px;margin-top:14px;background:var(--bg);
+  border-radius:26px;border:8px solid #22262B;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 18px 40px rgba(0,0,0,.22);position:relative;
+}
+.statusbar{
+  height:26px;background:#fff;color:var(--text);font-size:11px;flex:none;
+  display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+}
+.screen{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);position:relative}
+.toast{
+  position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(0,0,0,.78);
+  color:#fff;font-size:12px;padding:8px 14px;border-radius:16px;opacity:0;transition:opacity .22s;
+  pointer-events:none;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis;z-index:60;
+}
+.toast.show{opacity:1}
 
-  /* 通用 */
-  .navbar{
-    height:46px;background:#fff;display:flex;align-items:center;flex:none;
-    border-bottom:1px solid var(--line);padding:0 6px;
-  }
-  /* 返回：矢量箭头（原来是文字字符 ‹），与点餐页顶栏保持同一套图标语言 */
-  .navbar .back{
-    width:40px;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;color:var(--text);
-  }
-  .navbar .back .ic-svg{height:20px}
-  .navbar .title{flex:1;text-align:center;font-size:16px;font-weight:700}
-  .navbar .act{width:50px;text-align:center;font-size:13px;color:var(--primary);cursor:pointer}
-  .toast{
-    position:absolute;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(0,0,0,.78);
-    color:#fff;font-size:12px;padding:8px 14px;border-radius:16px;opacity:0;transition:opacity .22s;
-    pointer-events:none;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis;z-index:50;
-  }
-  .toast.show{opacity:1}
-  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--sub);font-size:13px;gap:10px}
-  .empty .big{font-size:44px}
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 16px;
-    border-radius:17px;background:var(--primary);color:#fff;font-size:13px;font-weight:700;
-    border:none;cursor:pointer;font-family:inherit;
-  }
-  .btn.ghost{background:#fff;color:var(--primary);border:1px solid var(--primary)}
-  .btn.gray{background:#fff;color:var(--sub);border:1px solid var(--line)}
-  .btn:disabled{background:#D0D0D0;cursor:not-allowed}
+/* ---------------- 通用导航栏（子页） ---------------- */
+.navbar{
+  height:48px;background:#fff;display:flex;align-items:center;flex:none;
+  padding:0 6px;border-bottom:1px solid var(--line);
+}
+.navbar .back{width:40px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text)}
+.navbar .back svg{width:20px;height:20px}
+.navbar .title{flex:1;text-align:center;font-size:16.6px;font-weight:600;color:var(--text)}
+.navbar .act{min-width:50px;text-align:center;font-size:12.5px;color:var(--sub);cursor:pointer}
+.navbar .act.red{color:var(--red)}
 
-  /* 顶部取餐方式栏 */
-  .topbar{background:var(--primary);color:#fff;padding:8px 12px 10px;flex:none}
-  .topbar .row1{display:flex;align-items:center;font-size:13px}
-  .topbar .row1 .store{font-size:18px;font-weight:800}
-  .topbar .row1 .shop{margin-left:8px;font-size:12px;color:#FFD9DE}
-  .topbar .row1 .switch{margin-left:auto;font-size:12px;cursor:pointer}
-  /* 返回首页按钮：红底上的半透明白圆，点它回入口页 */
-  .topbar .row1 .back{
-    width:28px;height:28px;border-radius:14px;margin-right:8px;flex:none;
-    display:flex;align-items:center;justify-content:center;
-    color:#fff;background:rgba(255,255,255,.18);cursor:pointer;
-  }
-  .topbar .row1 .back:active{background:rgba(255,255,255,.34)}
-  .topbar .row1 .back .ic-svg{height:19px}
-  .segment{display:flex;margin-top:10px;background:rgba(255,255,255,.16);border-radius:16px;padding:3px}
-  .segment div{
-    flex:1;text-align:center;font-size:13px;line-height:28px;border-radius:14px;cursor:pointer;color:#fff;
-  }
-  .segment div.on{background:#fff;color:var(--primary);font-weight:700}
+/* ---------------- 首页（选餐厅落地页）---------------- */
+.home{flex:1;overflow-y:auto;background:var(--bg);scrollbar-width:none}
+.home::-webkit-scrollbar{display:none}
+.home-banner{width:100%;height:260px;display:block;object-fit:cover}
+.privacy-pill{
+  position:absolute;right:15px;top:51px;height:19px;padding:0 10px;border-radius:9.4px;
+  background:rgba(0,0,0,.3);color:#fff;font-size:10.4px;display:flex;align-items:center;gap:3px;
+  cursor:pointer;z-index:3;
+}
+.privacy-pill svg{width:7px;height:7px}
+.store-card{
+  position:relative;margin:-36.4px 12.5px 12.5px;background:#fff;border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.user-row{
+  height:62px;background:#E6E6E6;border-radius:var(--r) var(--r) 0 0;
+  display:flex;align-items:center;padding:0 12.5px;cursor:pointer;
+}
+.user-row .ava{width:37px;height:37px;border-radius:50%;border:1px solid #fff;background:#fff;margin-right:11.4px;flex:none}
+.user-row .uname{font-size:14.6px;font-weight:500;color:var(--text);line-height:1.05}
+.user-row .udesc{font-size:10.4px;color:var(--sub);margin-top:4px}
+.store-block{
+  background:#fff;border-radius:0 0 var(--r) var(--r);padding:16.6px 13.5px;
+  display:flex;justify-content:space-between;min-height:134px;cursor:pointer;
+}
+.store-title{display:flex;align-items:center;font-size:19.8px;font-weight:700;color:var(--text);line-height:1.15}
+.store-title .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:250px}
+.store-title img{width:15px;height:15px;margin-left:5.7px;flex:none}
+.store-sub{font-size:11.4px;color:var(--hint);margin-top:5.2px}
+.store-tags{display:flex;flex-wrap:wrap;margin-top:5.2px}
+.store-tags span{
+  background:#F8F8F8;border-radius:4.2px;padding:3px 5px;margin:3px 6px 0 0;
+  font-size:11.4px;color:#666660;
+}
+.store-illu{width:84px;height:84px;flex:none;margin-right:7px}
 
-  /* 点餐主体 */
-  .menu{flex:1;display:flex;overflow:hidden}
-  .sidebar{width:88px;background:var(--sidebar);overflow-y:auto;flex:none;scrollbar-width:none}
-  .sidebar::-webkit-scrollbar{display:none}
-  .sidebar .item{
-    height:56px;display:flex;align-items:center;font-size:13px;color:var(--text);
-    padding:0 8px 0 0;cursor:pointer;border-left:3px solid transparent;
-  }
-  .sidebar .item.on{background:#fff;color:var(--primary);font-weight:700;border-left-color:var(--primary)}
-  .products{flex:1;overflow-y:auto;background:#fff;scrollbar-width:none}
-  .products::-webkit-scrollbar{display:none}
-  .cat-title{font-size:12px;color:var(--sub);background:var(--bg);padding:10px 12px 6px;position:sticky;top:0;z-index:2}
-  .prod{display:flex;gap:10px;padding:12px;border-bottom:1px solid #FAFAFA}
-  .thumb{
-    width:78px;height:78px;border-radius:16px;background:#FFF4E0;flex:none;
-    display:flex;align-items:center;justify-content:center;font-size:36px;
-  }
-  .prod .info{flex:1;min-width:0;display:flex;flex-direction:column;height:78px}
-  .prod .name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .prod .desc{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.4;max-height:30px;overflow:hidden}
-  .prod .foot{margin-top:auto;display:flex;align-items:center}
-  .price{color:var(--primary);font-weight:800;font-size:17px}
-  .price small{font-size:11px}
-  img.thumb{object-fit:cover;display:block;padding:0}
-  .origin{color:var(--sub);font-size:11px;text-decoration:line-through;margin-right:4px}
-  .plus{
-    margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
-    display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;
-    line-height:1;user-select:none;
-  }
-  .plus.off{background:#D0D0D0;cursor:not-allowed}
+.start-wrap{margin:0 12.5px 12.5px}
+.start-btn{
+  height:56px;background:var(--red);border-radius:8.3px;box-shadow:0 6px 21px rgba(51,51,51,.2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.start-btn:active{background:#C8002A}
+.start-btn img{width:17px;height:20px;margin-right:8.3px}
+.start-t{font-size:16.6px;font-weight:700;color:#fff;line-height:1.12}
+.start-e{font-size:11.4px;color:#fff;margin-top:1px}
 
-  /* 底部购物车栏 */
-  .cartbar{
-    height:60px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;
-    padding:0 12px;flex:none;gap:10px;
-  }
-  .carticon{
-    width:44px;height:44px;border-radius:50%;background:#CCC;color:#fff;font-size:20px;
-    display:flex;align-items:center;justify-content:center;position:relative;flex:none;
-  }
-  .carticon.on{background:var(--primary)}
-  .badge{
-    position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;border-radius:8px;background:#fff;
-    color:var(--primary);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
-    padding:0 3px;border:1px solid var(--primary);
-  }
-  .cartinfo{flex:1;cursor:pointer;min-width:0}
-  .cartinfo .amt{font-size:18px;font-weight:800;color:var(--primary)}
-  .cartinfo .amt small{font-size:11px}
-  .cartinfo .sub{font-size:10px;color:var(--hint);margin-top:2px}
+.temp-order{
+  position:relative;margin:0 12.5px 16.6px;height:50px;background:#fff;border-radius:var(--r);
+  display:flex;align-items:center;padding:0 13.5px 0 22.9px;
+}
+.temp-order>img{width:29px;height:29px;margin-right:12.5px;flex:none}
+.to-t{font-size:12.5px;font-weight:600;color:var(--text)}
+.to-d{font-size:12.5px;color:var(--red);margin-top:1px}
+.to-btn{
+  margin-left:auto;height:28px;padding:0 12.5px;border:.5px solid var(--red);border-radius:4.2px;
+  color:var(--red);font-size:12.5px;font-weight:500;background:#fff;display:flex;align-items:center;cursor:pointer;
+}
+.to-close{
+  position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:24px;height:24px;
+  border-radius:50%;background:rgba(209,209,209,.16);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#999;
+}
+.to-close svg{width:9px;height:9px}
 
-  /* 底部 tab */
-  .tabbar{height:52px;background:#fff;border-top:1px solid var(--line);display:flex;flex:none}
-  .tabbar div{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-size:11px;color:var(--sub);gap:2px;cursor:pointer;
-  }
-  .tabbar div.on{color:var(--primary)}
+/* ---------------- 选择餐厅（门店列表）---------------- */
+.searchrow{
+  background:#fff;padding:9px 12.5px;display:flex;align-items:center;gap:0;flex:none;
+}
+.city-pick{
+  display:flex;align-items:center;gap:3px;font-size:12.5px;color:var(--text);flex:none;cursor:pointer;
+  padding-right:8px;max-width:96px;
+}
+.city-pick img{width:8px;height:5px}
+.searchbox{
+  flex:1;height:31px;background:#F5F5F5;border-radius:5px;display:flex;align-items:center;padding:0 9px;gap:6px;min-width:0;
+}
+.searchbox img{width:13px;height:13px;flex:none;opacity:.55}
+.searchbox input{
+  flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:12.5px;
+  font-family:inherit;color:var(--text);
+}
+.searchbox input::placeholder{color:#B0B0B0}
+.login-tip{
+  background:#fff;padding:0 12.5px 9px;display:flex;align-items:center;gap:5px;flex:none;
+  font-size:11.4px;color:#666;
+}
+.login-tip .dot{
+  width:11px;height:11px;border-radius:50%;border:1px solid #C9C9C9;color:#C9C9C9;font-size:8px;
+  display:flex;align-items:center;justify-content:center;flex:none;line-height:1;
+}
+.login-tip .go{
+  margin-left:auto;background:var(--red);color:#fff;font-size:11.4px;height:20px;border-radius:10px;
+  padding:0 11px;display:flex;align-items:center;cursor:pointer;
+}
+.maparea{
+  height:150px;background:#F2F2F2;flex:none;position:relative;overflow:hidden;
+}
+.maparea img{width:100%;height:100%;object-fit:cover;opacity:.9;display:block}
+.maparea .pin{
+  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:26px;height:36px;
+}
+.locbtn{
+  position:absolute;right:12px;bottom:12px;width:30px;height:30px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 5px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;
+  color:#666;cursor:pointer;
+}
+.storetabs{display:flex;gap:22px;padding:12px 12.5px 6px;background:#fff;flex:none}
+.storetabs div{font-size:14.6px;color:var(--hint);cursor:pointer;position:relative;padding-bottom:7px}
+.storetabs div.on{color:var(--text);font-weight:700}
+.storetabs div.on:after{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:16px;height:2.6px;
+  background:var(--red);border-radius:2px;
+}
+.storelist{flex:1;overflow-y:auto;background:#fff;scrollbar-width:none}
+.storelist::-webkit-scrollbar{display:none}
+.store-item{padding:13px 12.5px;border-bottom:1px solid #F2F2F2;display:flex;gap:10px;cursor:pointer}
+.store-item .si-main{flex:1;min-width:0}
+.store-item .si-name{font-size:14.6px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.store-item .si-name .badge{
+  font-size:9.4px;font-weight:400;color:var(--red);border:.5px solid var(--red);border-radius:2px;padding:0 3px;
+}
+.store-item .si-addr{font-size:11.4px;color:var(--hint);margin-top:5px;line-height:1.45}
+.store-item .si-meta{font-size:11.4px;color:var(--sub);margin-top:5px;display:flex;gap:10px;flex-wrap:wrap}
+.store-item .si-meta b{color:var(--red);font-weight:400}
+.store-item .si-btn{
+  align-self:center;flex:none;height:28px;padding:0 14px;border-radius:14px;border:.5px solid var(--red);
+  color:var(--red);font-size:12.5px;background:#fff;display:flex;align-items:center;cursor:pointer;
+}
+.store-item .si-btn.on{background:var(--red);color:#fff}
+.store-dist{font-size:11.4px;color:var(--hint);margin-left:auto;flex:none;padding-top:3px}
 
-  /* 列表卡片 */
-  .list{padding:10px 12px;overflow-y:auto;flex:1;scrollbar-width:none}
-  .list::-webkit-scrollbar{display:none}
-  .card{background:#fff;border-radius:10px;padding:12px;margin-bottom:10px}
-  .line{display:flex;align-items:center;gap:8px}
-  .muted{color:var(--sub);font-size:12px}
-  .hint{color:var(--hint);font-size:11px}
-  .divider{height:1px;background:var(--line);margin:8px 0}
-  .field{display:flex;align-items:center;margin-top:10px}
-  .field label{width:64px;font-size:13px;color:var(--sub);flex:none}
-  .field input{
-    flex:1;height:38px;border:none;background:#F7F7F7;border-radius:8px;padding:0 10px;
-    font-size:13px;font-family:inherit;min-width:0;
-  }
-  .stepper{display:flex;align-items:center;gap:8px;flex:none}
-  .stepper .op{
-    width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:flex;
-    align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--text);background:#fff;
-  }
-  .stepper .op.plusop{background:var(--primary);border-color:var(--primary);color:#fff}
-  .stepper .qty{min-width:22px;text-align:center;font-size:14px;font-weight:700}
-  .banner{background:var(--primary);color:#fff;padding:20px 12px;text-align:center;flex:none}
-  .banner .code{font-size:40px;font-weight:800;letter-spacing:2px;margin-top:6px}
-  .banner .st{font-size:20px;font-weight:700}
-  .banner .sub{font-size:12px;color:#FFD9DE;margin-top:8px}
-  .chips{display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
-  .chips div{
-    flex:1;text-align:center;height:30px;line-height:30px;border-radius:15px;font-size:13px;
-    color:var(--sub);cursor:pointer;
-  }
-  .chips div.on{background:var(--primary);color:#fff;font-weight:700}
-  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-  .profile{background:var(--primary);color:#fff;padding:20px 12px;flex:none;display:flex;align-items:center;gap:12px}
-  .avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.24);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
-  .vip{background:var(--accent);color:#7A4B00;font-size:10px;border-radius:4px;padding:1px 5px;margin-left:8px;font-weight:700}
-  .rows{background:#fff;margin-top:10px;flex:none}
-  .rows .r{height:50px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
-  .rows .r .ic{width:28px;font-size:18px}
-  .rows .r .ar{margin-left:auto;color:var(--hint)}
-  .pad{padding:0 12px}
+/* ---------------- 点餐页 ---------------- */
+.order-head{background:#fff;flex:none;padding:6px 12.5px 9px;border-bottom:1px solid #F2F2F2}
+.oh-row{display:flex;align-items:center;gap:8px}
+.oh-back{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;flex:none}
+.oh-back svg{width:19px;height:19px}
+.oh-store{font-size:14.6px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oh-switch{font-size:11.4px;color:var(--sub);border:.5px solid var(--line);border-radius:9px;padding:1px 7px;flex:none;cursor:pointer}
+.oh-tabs{display:flex;gap:16px;margin-top:7px;align-items:center}
+.oh-tabs div{font-size:13.5px;color:var(--hint);cursor:pointer;position:relative;padding-bottom:5px}
+.oh-tabs div.on{color:var(--text);font-weight:700}
+.oh-tabs div.on:after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:14px;height:2.4px;background:var(--red);border-radius:2px}
+.oh-tabs .tsearch{margin-left:auto;display:flex;align-items:center;gap:5px;background:#F5F5F5;border-radius:14px;height:26px;padding:0 10px}
+.oh-tabs .tsearch svg{width:12px;height:12px;color:#B0B0B0}
+.oh-tabs .tsearch input{border:0;background:transparent;outline:none;font-size:11.4px;width:96px;font-family:inherit;color:var(--text)}
 
-  /* 入口页 —— 仿肯德基小程序开屏：整屏肯德基红 + 品牌徽标 + 官方菜品图 + 两张白色入口卡 */
-  /* ================= 入口页（仿肯德基小程序首屏） =================
-     结构：红色 hero（天际线 + 门店 + 骑手 + 车速取）
-           → 三个取餐通道 → 四个功能圆图标 → 会员卡
-           → APP热卖/大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab
-     顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏按要求先不做。 */
-  .entry{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F2F2F2}
-  .entry-scroll{flex:1;overflow-y:auto;scrollbar-width:none}
-  .entry-scroll::-webkit-scrollbar{display:none}
+.menu{flex:1;display:flex;overflow:hidden;background:#fff}
+.rail{width:76px;background:#F7F7F7;overflow-y:auto;flex:none;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail .cat{
+  min-height:58px;padding:9px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;font-size:11.4px;color:var(--text);cursor:pointer;text-align:center;line-height:1.2;
+}
+.rail .cat img{width:22px;height:22px;object-fit:contain}
+.rail .cat.on{background:#fff;color:var(--red);font-weight:700}
+.goods{flex:1;overflow-y:auto;padding:8px 6px 76px;scrollbar-width:none}
+.goods::-webkit-scrollbar{display:none}
+.goods-title{font-size:12.5px;font-weight:700;color:var(--text);padding:4px 2px 8px;display:flex;align-items:center;gap:5px}
+.goods-title em{font-style:normal;font-size:10.4px;color:var(--hint);font-weight:400}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pcard{
+  background:#fff;border:.5px solid #E6E6E6;border-radius:4.2px;padding:8px 4px 10px;
+  display:flex;flex-direction:column;position:relative;cursor:pointer;overflow:hidden;
+}
+.pcard .pic{width:100%;height:82px;display:flex;align-items:center;justify-content:center}
+.pcard .pic img{max-width:100%;max-height:82px;object-fit:contain;display:block}
+.pcard .pname{font-size:13px;color:var(--text);line-height:1.28;margin-top:6px;height:33px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pcard .plabel{
+  display:block;background:#F8E2B7;border-radius:4px;height:14px;line-height:14px;
+  padding:0 4px;font-size:9px;color:#403C33;margin-top:4px;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100%;
+}
+.pcard .prow{display:flex;align-items:flex-end;justify-content:space-between;gap:4px;margin-top:auto;padding-top:6px;min-height:22px}
+.pcard .pgrp{display:flex;align-items:baseline;flex:1 1 auto;min-width:0;overflow:hidden}
+.pcard .pprice{color:var(--red);font-size:13.6px;font-weight:700;line-height:1.1;flex:none}
+.pcard .pprice small{font-size:9.4px;font-weight:400}
+.pcard .porigin{color:#B0B0B0;font-size:9.2px;text-decoration:line-through;margin-left:3px;line-height:1.4;flex-shrink:1;overflow:hidden}
+.pcard .add{
+  flex:none;margin-left:auto;width:23px;height:22px;background:var(--red);margin-bottom:-5px;margin-right:-3px;
+  border-radius:4px 0 4px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.pcard .add svg{width:11px;height:11px;color:#fff}
+.pcard .add.off{background:#D8D8D8;cursor:not-allowed}
+.empty-tip{padding:38px 0;text-align:center;color:var(--hint);font-size:12.5px}
 
-  /* ---- 1. 红色 hero ---- */
-  .ehero{position:relative;overflow:hidden;background:linear-gradient(180deg,#E4002B 0%,#DC0027 58%,#C6001F 100%)}
-  .ehero .skyline{position:absolute;left:0;bottom:0;width:100%;height:150px;display:block}
-  .ehero .scene{position:relative;display:block;width:100%;height:auto}
+.cartbar{
+  height:56px;background:#fff;border-top:1px solid #F0F0F0;display:flex;align-items:center;
+  padding:0 12.5px 0 14px;flex:none;position:absolute;left:0;right:0;bottom:0;z-index:5;
+}
+.cartbar .cicon{
+  width:46px;height:46px;border-radius:50%;background:var(--red);display:flex;align-items:center;
+  justify-content:center;position:absolute;left:14px;bottom:16px;box-shadow:0 2px 8px rgba(228,0,48,.35);cursor:pointer;
+}
+.cartbar .cicon svg{width:22px;height:22px;color:#fff}
+.cartbar .cicon.off{background:#CFCFCF;box-shadow:none}
+.cartbar .cnum{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#fff;
+  color:var(--red);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  padding:0 3px;border:.5px solid var(--red);
+}
+.cartbar .cinfo{margin-left:58px;flex:1;min-width:0}
+.cartbar .camt{font-size:17.7px;font-weight:700;color:var(--text);line-height:1.1}
+.cartbar .camt small{font-size:10.4px;font-weight:400}
+.cartbar .csub{font-size:10.4px;color:var(--hint);margin-top:2px}
+.cartbar .cgo{
+  flex:none;height:36px;min-width:96px;border-radius:18px;background:var(--red);color:#fff;
+  font-size:14.6px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.cartbar .cgo.off{background:#D8D8D8;color:#fff}
 
-  /* ---- 2. 三个取餐通道 ---- */
-  .echs{display:flex;background:#fff;height:46px}
-  .echs .ch{
-    flex:1;display:flex;align-items:center;justify-content:center;
-    font-size:14.5px;font-weight:700;color:#1A1A1A;cursor:pointer;letter-spacing:-.3px;
-  }
-  .echs .ch em{font-style:normal;color:#A8A8A8;font-size:15px;margin-left:2px;font-weight:400}
-  .echs .ch:active{opacity:.55}
+/* ---------------- 购物车 / 订单 / 地址 通用 ---------------- */
+.list{flex:1;overflow-y:auto;padding:10px 12.5px 90px;scrollbar-width:none}
+.list::-webkit-scrollbar{display:none}
+.card{background:#fff;border-radius:var(--r);padding:12px;margin-bottom:10px}
+.card-h{display:flex;align-items:center;font-size:13.5px;font-weight:700;margin-bottom:10px}
+.card-h .more{margin-left:auto;font-size:11.4px;color:var(--sub);font-weight:400;cursor:pointer}
+.ci{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #F5F5F5}
+.ci:last-child{border-bottom:0}
+.ci img{width:64px;height:64px;border-radius:6px;object-fit:contain;background:#FFF8EE;flex:none}
+.ci .cd{flex:1;min-width:0;display:flex;flex-direction:column}
+.ci .cn{font-size:13px;color:var(--text);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ci .cs{font-size:10.4px;color:var(--hint);margin-top:3px}
+.ci .cf{margin-top:auto;display:flex;align-items:center}
+.ci .cp{color:var(--red);font-size:14.6px;font-weight:700}
+.ci .cp small{font-size:9.4px;font-weight:400}
+.stepper{display:flex;align-items:center;gap:7px;margin-left:auto}
+.stepper .op{
+  width:22px;height:22px;border-radius:50%;border:.5px solid #DDD;background:#fff;color:var(--text);
+  display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;line-height:1;
+}
+.stepper .op.plusop{background:var(--red);border-color:var(--red);color:#fff}
+.stepper .qty{min-width:16px;text-align:center;font-size:13px;font-weight:700}
+.row{display:flex;align-items:center;font-size:12.5px;color:var(--sub);padding:7px 0}
+.row b{margin-left:auto;color:var(--text);font-weight:600}
+.row b.red{color:var(--red);font-size:14.6px}
+.hr{height:1px;background:#F2F2F2;margin:6px 0}
+.btn{
+  height:40px;border-radius:20px;background:var(--red);color:#fff;font-size:14.6px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;border:0;cursor:pointer;font-family:inherit;width:100%;
+}
+.btn:disabled{background:#D8D8D8;}
+.btn.ghost{background:#fff;color:var(--red);border:.5px solid var(--red)}
+.btn.small{height:29px;border-radius:15px;font-size:12.5px;width:auto;padding:0 16px;font-weight:500}
+.bottombar{
+  position:absolute;left:0;right:0;bottom:0;height:60px;background:#fff;border-top:1px solid #F0F0F0;
+  display:flex;align-items:center;gap:10px;padding:0 12.5px;z-index:5;
+}
+.bottombar .binfo{flex:1;min-width:0}
+.bottombar .bamt{font-size:17.7px;font-weight:700;color:var(--red);line-height:1.1}
+.bottombar .bamt small{font-size:10.4px;font-weight:400}
+.bottombar .bsub{font-size:10.4px;color:var(--hint);margin-top:2px}
+.bottombar .btn{width:auto;min-width:104px;padding:0 20px;height:38px;border-radius:19px;font-size:14.6px}
 
-  /* ---- 3. 四个功能圆图标 ---- */
-  .etools{display:flex;background:#fff;padding:2px 4px 12px}
-  .etools .t{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
-  .etools .t .ic{
-    width:46px;height:46px;border-radius:23px;display:flex;align-items:center;justify-content:center;
-    background:#FFFFFF;box-shadow:0 2px 9px rgba(0,0,0,.10);
-  }
-  .etools .t span{font-size:10.5px;color:#2B2B2B;letter-spacing:-.2px}
-  .etools .t:active{opacity:.6}
-  .edots{display:flex;justify-content:center;gap:4px;background:#fff;padding:0 0 9px}
-  .edots i{width:5px;height:5px;border-radius:3px;background:#E0E0E0}
-  .edots i.on{width:13px;background:#E4002B}
+/* 订单卡 */
+.ocard{background:#fff;border-radius:var(--r);padding:12px;margin-bottom:10px}
+.ocard .oh{display:flex;align-items:center;font-size:12.5px;color:var(--sub)}
+.ocard .oh .st{margin-left:auto;color:var(--red);font-weight:600;font-size:12.5px}
+.ocard .oh .st.done{color:var(--hint)}
+.ocard .ob{display:flex;gap:8px;margin:10px 0 8px}
+.ocard .ob img{width:58px;height:58px;border-radius:6px;object-fit:contain;background:#FFF8EE;flex:none}
+.ocard .of{display:flex;align-items:center;font-size:11.4px;color:var(--hint)}
+.ocard .of b{margin-left:auto;font-size:13px;color:var(--text)}
+.ocard .of b em{font-style:normal;color:var(--red);font-size:14.6px;font-weight:700}
+.ocard .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 
-  /* ---- 4. 会员卡 ---- */
-  .evipwrap{padding:9px 9px 0;background:#F2F2F2}
-  .evip{
-    position:relative;background:#fff;border-radius:11px;padding:10px 12px;display:flex;align-items:center;
-    overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.045);
-  }
-  .evip .ava{width:42px;height:42px;border-radius:50%;overflow:hidden;flex:none;background:#FFF4F6}
-  .evip .mid{flex:1;min-width:0;margin-left:9px;position:relative;z-index:2}
-  .evip .l1{display:flex;align-items:center;gap:5px;font-size:14.5px;font-weight:800;color:#1A1A1A;letter-spacing:-.3px}
-  .evip .l1 .tag{
-    display:inline-flex;align-items:center;gap:2px;flex:none;
-    background:linear-gradient(90deg,#4A4A4A,#222);color:#FFD05B;
-    font-size:9.5px;font-weight:700;border-radius:8px;padding:2px 6px;
-  }
-  .evip .l1 .open{font-size:10.5px;color:#AFAFAF;font-weight:400;flex:none}
-  .evip .l2{display:flex;align-items:center;gap:13px;margin-top:6px;font-size:10.5px;color:#9A9A9A}
-  .evip .l2 u{text-decoration:none;color:#F0A200;font-size:11px;margin-right:2px}
-  .evip .l2 b{color:#1A1A1A;font-size:11.5px;font-weight:700;margin-left:2px}
-  .evip .wow{
-    position:absolute;right:-4px;bottom:-13px;font-size:42px;font-weight:900;font-style:italic;
-    color:#FCEEF1;letter-spacing:-2px;pointer-events:none;line-height:1;
-  }
+/* 地址卡 */
+.acard{background:#fff;border-radius:var(--r);padding:13px;margin-bottom:10px;display:flex;gap:10px;cursor:pointer}
+.acard .ad{flex:1;min-width:0}
+.acard .an{font-size:14.6px;font-weight:700}
+.acard .an span{font-size:12.5px;color:var(--sub);font-weight:400;margin-left:8px}
+.acard .aa{font-size:11.4px;color:var(--hint);margin-top:5px;line-height:1.5}
+.acard .def{
+  font-size:9.4px;color:var(--red);border:.5px solid var(--red);border-radius:2px;padding:0 3px;
+  margin-left:6px;vertical-align:middle;
+}
+.acard .ed{flex:none;display:flex;align-items:center;color:var(--hint);font-size:11.4px;gap:8px}
+.acard .ed span{cursor:pointer;white-space:nowrap}
 
-  /* ---- 5. tab ---- */
-  .etabs{display:flex;gap:22px;padding:13px 14px 4px;background:#F2F2F2}
-  .etabs div{font-size:15.5px;font-weight:700;color:#8E8E8E;cursor:pointer;letter-spacing:-.3px}
-  .etabs div.on{color:#1A1A1A;font-weight:800}
+/* 我的 */
+.mine{flex:1;overflow-y:auto;background:var(--bg);scrollbar-width:none}
+.mine::-webkit-scrollbar{display:none}
+.mhead{background:var(--red);padding:8px 14px 22px;color:#fff;position:relative}
+.mback{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;color:#fff;cursor:pointer;margin-bottom:10px}
+.mback svg{width:20px;height:20px}
+.mhead .m1{display:flex;align-items:center;gap:12px}
+.mhead .mava{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.24);flex:none}
+.mhead .mn{font-size:17.7px;font-weight:700}
+.mhead .md{font-size:11.4px;color:rgba(255,255,255,.82);margin-top:4px}
+.mhead .mlogin{
+  margin-left:auto;border:.5px solid #fff;border-radius:14px;height:27px;padding:0 14px;font-size:12.5px;
+  display:flex;align-items:center;cursor:pointer;
+}
+.mvip{display:flex;gap:8px;margin-top:14px}
+.mvip .v{flex:1;background:rgba(255,255,255,.16);border-radius:8px;padding:9px 10px}
+.mvip .v i{font-style:normal;font-size:10.4px;color:rgba(255,255,255,.82);display:block}
+.mvip .v b{font-size:16.6px;font-weight:700;margin-top:3px;display:block}
+.mrows{background:#fff;margin:10px 12.5px;border-radius:var(--r);overflow:hidden}
+.mrow{height:50px;display:flex;align-items:center;padding:0 13px;font-size:13.5px;border-bottom:1px solid #F5F5F5;cursor:pointer}
+.mrow:last-child{border-bottom:0}
+.mrow .ic{width:26px;color:var(--sub);display:flex;align-items:center}
+.mrow .ic svg{width:17px;height:17px}
+.mrow .ar{margin-left:auto;color:#C9C9C9}
+.mrow .ar svg{width:14px;height:14px}
 
-  /* ---- 6. 商品 2 列网格 ---- */
-  .egrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px 9px 0;background:#F2F2F2}
-  .egc{position:relative;background:#fff;border-radius:9px;padding:8px 8px 9px;cursor:pointer;overflow:hidden}
-  .egc:active{background:#FCFCFC}
-  .egc .bd{
-    position:absolute;left:0;top:0;z-index:2;background:#E4002B;color:#fff;
-    font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:9px 0 9px 0;letter-spacing:-.2px;
-  }
-  .egc .pic{height:80px;display:flex;align-items:center;justify-content:center}
-  .egc .pic img{max-width:100%;max-height:80px;object-fit:contain;display:block}
-  .egc .gn{
-    font-size:11.5px;color:#1A1A1A;line-height:1.3;height:30px;overflow:hidden;margin-top:3px;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  }
-  .egc .gp{display:flex;align-items:baseline;gap:3px;margin-top:5px}
-  .egc .gp b{color:#E4002B;font-size:15px;font-weight:800;letter-spacing:-.5px}
-  .egc .gp b small{font-size:10px;font-weight:700;margin-right:1px}
-  .egc .gp em{font-style:normal;font-size:9.5px;color:#E4002B}
-  .egc .gp s{color:#B8B8B8;font-size:10.5px;margin-left:auto}
+/* 登录 */
+.login{flex:1;background:#fff;padding:0 26px;display:flex;flex-direction:column}
+.login .logo{font-size:34px;font-weight:900;color:var(--red);font-style:italic;letter-spacing:-1.5px;margin-top:44px}
+.login .lg-sub{font-size:12.5px;color:var(--hint);margin-top:6px}
+.login .fld{margin-top:26px;border-bottom:1px solid #EFEFEF;display:flex;align-items:center;height:46px}
+.login .fld input{flex:1;border:0;outline:none;font-size:14.6px;font-family:inherit;background:transparent;color:var(--text)}
+.login .fld input::placeholder{color:#B8B8B8}
+.login .sub{margin-top:26px}
+.login .tip{font-size:11.4px;color:var(--hint);text-align:center;margin-top:14px;line-height:1.7}
+.login .demo{font-size:11.4px;color:var(--red);text-align:center;margin-top:6px;cursor:pointer}
 
-  /* ---- 7. 两张券 ---- */
-  .ecps{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px 9px 14px;background:#F2F2F2}
-  .ecp{
-    position:relative;display:flex;align-items:center;gap:6px;border-radius:9px;padding:11px 8px;
-    background:linear-gradient(120deg,#FFF0F3,#FFE6EC);overflow:hidden;
-  }
-  .ecp.warm{background:linear-gradient(120deg,#FFF7E9,#FFEED6)}
-  .ecp .ci{width:34px;height:34px;flex:none}
-  .ecp .cw{min-width:0}
-  .ecp .ct{font-size:10.5px;color:#4A4A4A;white-space:nowrap;letter-spacing:-.2px}
-  .ecp .cv{font-size:14px;font-weight:800;color:#E4002B;margin-top:2px;white-space:nowrap}
-  .ecp .cv small{font-size:9.5px;font-weight:700}
-  .ecp .cb{
-    margin-left:auto;flex:none;width:26px;text-align:center;font-size:9px;line-height:1.3;color:#E4002B;
-    border-left:1px dashed rgba(228,0,43,.28);padding:2px 0 2px 5px;
-  }
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--hint);font-size:12.5px;gap:8px;padding:40px 0}
+.empty svg{width:64px;height:64px;color:#DDD}
+.ic-svg{display:flex;align-items:center;justify-content:center}
 
-  /* ---- 8. 深色底部 tab（中间 AI 点餐凸起） ---- */
-  .etabbar{
-    flex:none;position:relative;display:flex;align-items:flex-end;height:60px;
-    padding-bottom:5px;background:linear-gradient(180deg,#3C3C3C 0%,#1D1D1D 100%);
-  }
-  .etabbar .tb{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;
-    height:50px;cursor:pointer;position:relative;z-index:2;
-  }
-  .etabbar .tb span{font-size:9.5px;color:#EDEDED;letter-spacing:-.3px;white-space:nowrap}
-  .etabbar .tb.on span{color:#FF5468;font-weight:700}
-  .etabbar .tb:active{opacity:.6}
-  .etabbar .tb.ai{z-index:3}
-  .etabbar .tb.ai .ball{
-    position:absolute;left:50%;bottom:15px;transform:translateX(-50%);
-    width:54px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(circle at 50% 40%,#FF4A62 0%,#E4002B 58%,#BE0022 100%);
-    box-shadow:0 0 0 5px rgba(228,0,43,.20),0 6px 14px rgba(0,0,0,.42);
-    color:#fff;font-size:24px;font-weight:900;letter-spacing:-1px;
-  }
-  .etabbar .tb.ai span{margin-top:23px;color:#FF5468;font-weight:700}
-  .etabbar .tb .k-logo{font-size:19px;font-weight:900;color:#E4002B;font-style:italic;letter-spacing:-1px;line-height:1}
-  .etabbar .tb .wow-logo{font-size:15px;font-weight:900;color:#FFF;font-style:italic;letter-spacing:-.5px;line-height:1}
-
-  /* 顶部搜索框 —— 取代原来的「到店自取 / 外送到家」胶囊 */
-  .searchbar{
-    display:flex;align-items:center;gap:8px;margin-top:10px;height:36px;padding:0 12px;
-    background:#fff;border-radius:18px;
-  }
-  .searchbar .mag{color:var(--hint);display:flex;flex:none}
-  .searchbar input{
-    flex:1;min-width:0;height:100%;border:none;background:transparent;outline:none;
-    font-size:13px;font-family:inherit;color:var(--text);
-  }
-  .searchbar input::placeholder{color:var(--hint)}
-  .searchbar .clear{
-    width:18px;height:18px;border-radius:50%;background:#DCDCDC;color:#fff;font-size:13px;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;line-height:1;
-  }
-  .searchbar .clear.hide{display:none}
-
-  /* 搜索结果提示条 */
-  .result-bar{
-    display:flex;align-items:center;padding:9px 12px;background:#fff;flex:none;
-    border-bottom:1px solid var(--line);font-size:12px;color:var(--sub);
-  }
-  .result-bar b{color:var(--primary);margin:0 2px}
-
-  /* 矢量图标（内联 SVG，stroke=currentColor 直接继承文字色，不再用 emoji 字体） */
-  .ic-svg{display:flex;align-items:center;justify-content:center}
-  .tabbar div .ic-svg{height:22px}
-  .rows .r .ic{width:28px;display:flex;align-items:center;color:var(--sub)}
-  .empty .big{display:flex;align-items:center;justify-content:center;color:var(--hint)}
+/* 地址卡：块级布局，操作行单独一行右对齐，避免长地址把按钮挤进文字里 */
+.acard{display:block;padding:13px 12.5px 4px}
+.acard .an{display:flex;align-items:center;font-size:14.6px;font-weight:700;color:#231E1F}
+.acard .an span{font-size:12.5px;font-weight:400;color:#666;margin-left:8px}
+.acard .an .def{font-size:9.8px;font-weight:400;color:#E40030;border:.5px solid #E40030;
+  border-radius:2px;padding:0 3px;margin-left:6px;line-height:1.5}
+.acard .aa{font-size:12.5px;color:#666;margin-top:6px;line-height:1.5}
+.acard .af{display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  border-top:.5px solid #F5F5F5;margin-top:10px;height:40px}
+.acard .lnk{display:inline-flex;align-items:center;font-size:11.4px;color:#666;cursor:pointer;white-space:nowrap}
+.acard .lnk svg{width:11px;height:11px;margin-right:3px;color:#C9C9C9}
 </style>
 </head>
 <body>
 
 <div class="page-title">KFC 点餐 · 前后端联调预览</div>
 <div class="page-hint">
-  这个页面跑在 Spring Boot 的静态资源里，和接口同源，用来在没有模拟器/真机时<br>
-  验证「鸿蒙端界面 + 后端 CRUD」这条链路。数据都是真实接口返回的。<br>
-  接口地址 <code id="apiBase"></code> 　后端状态 <code id="health">检测中…</code>
+  界面按肯德基手机端（order.kfc.com.cn/preorder-taro）复刻，色值/字号/圆角取自其运行期 CSS。<br>
+  数据全部走真实接口。门店固定为「浙江农林大学店」。
+  <br>接口地址 <code id="apiBase"></code> 　后端状态 <code id="health">检测中…</code>
 </div>
 
 <div class="phone">
   <div class="statusbar">
-    <span id="clock">21:00</span>
-    <span>KFC 点餐</span>
+    <span id="clock">09:57</span>
+    <span id="sbtitle">肯德基</span>
     <span>100%</span>
   </div>
   <div class="screen" id="screen"></div>
@@ -359,1137 +409,751 @@
 </div>
 
 <script>
-/* ============================ 基础设施 ============================ */
-const state = {
-  // entry 是最外层的入口页（外送 / 到店自取），两个入口都进 menu：界面完全一样
-  view: 'entry',           // entry | menu | cart | orders | orderDetail | address | mine | login
-  userId: 0,
-  user: null,
-  /** 取餐方式，由入口页两张卡决定；只影响点餐页顶部标签，不参与下单（订单仍写死 PICKUP） */
-  pickupType: 'PICKUP',
-  categories: [],
-  activeCategory: 0,
-  keyword: '',             // 搜索框当前内容
-  searchResults: [],       // /api/products/search 的结果
-  searching: false,
-  /** 整页 innerHTML 重绘后要不要把焦点还给搜索框（否则打字打一半会掉焦点） */
-  searchFocus: false,
-  cartItems: [],
-  cartCount: 0,
-  cartAmount: 0,
-  orders: [],
-  orderFilter: 'ALL',
-  currentOrder: null,
-  addresses: [],
-  remark: '',
-  addressForm: { receiver:'', phone:'', province:'浙江省', city:'杭州市', district:'临安区', detail:'', isDefault:true },
-  loginMode: 'LOGIN',
-  loginForm: { username:'demo', password:'123456', nickname:'', phone:'' },
-  busy: false
+/* ============================ 基础 ============================ */
+const $ = s => document.querySelector(s);
+const screenEl = () => document.getElementById('screen');
+const rmb = n => '\u00A5' + Number(n || 0).toFixed(2);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* 门店：浙江农林大学店（真实地址，来源 KFC 门店信息） */
+const STORE = {
+  code: 'ZJNLU',
+  name: '肯德基(农林大学店)',
+  addr: '杭州市临安区锦北街道武肃街666号 浙江农林大学东湖食堂1层外侧档口',
+  hours: '06:30-22:00',
+  dist: '0.1km',
+  tags: ['到店自取', '外送到家', '开车速取']
 };
 
-const DEMO = { username: 'demo', password: '123456' };
-document.getElementById('apiBase').textContent = location.origin + '/api';
+const S = {
+  page: 'entry',
+  user: null,
+  pickup: 'PICKUP',
+  cats: [], products: [],
+  catId: null,
+  cart: { count: 0, amount: 0 },
+  cartItems: [],
+  orders: [],
+  addresses: [],
+  keyword: '',
+  searchResults: null,
+  orderId: null,
+  storeTab: 0,
+  entryClosed: false
+};
 
-async function api(path, method, body) {
-  const res = await fetch('/api' + path, {
-    method: method || 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  const json = await res.json();
-  if (json.code !== 200) throw new Error(json.message || ('HTTP ' + res.status));
-  return json.data;
+const PICKUP_TEXT = { DELIVERY: '外送到家', PICKUP: '到店自取', DRIVE: '开车速取' };
+
+/* 图标（Material Symbols 路径，fill 用 currentColor） */
+const P = {
+  back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+  chev: 'M9.29 6.71a.996.996 0 000 1.41L13.17 12l-3.88 3.88a.996.996 0 101.41 1.41l4.59-4.59a.996.996 0 000-1.41L10.7 6.7a.996.996 0 00-1.41.01z',
+  close: 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+  plus: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+  minus: 'M19 13H5v-2h14v2z',
+  cart: 'M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0020 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z',
+  search: 'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  loc: 'M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z',
+  user: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+  order: 'M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z',
+  addr: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z',
+  coupon: 'M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 00-5.5-1.65l-.5.67-.5-.68C11.28 3.13 10.68 3 10 3 8.34 3 7 4.34 7 6c0 .35.07.69.18 1H5c-1.11 0-1.99.89-1.99 2L3 19c0 1.11.89 2 2 2h15c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM10 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 15H6v-2h8v2zm3-4H6v-2h11v2zm0-4H6V9h11v2z',
+  gift: 'M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 00-5.5-1.65l-.5.67-.5-.68C11.28 3.13 10.68 3 10 3 8.34 3 7 4.34 7 6c0 .35.07.69.18 1H5c-1.11 0-1.99.89-1.99 2L3 19c0 1.11.89 2 2 2h15c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2z',
+  logout: 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z',
+  star: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'
+};
+const svg = (d, cls) => '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="' + d + '"/></svg>';
+
+/* ============================ 接口 ============================ */
+async function api(path, opt) {
+  const o = Object.assign({}, opt || {});
+  o.headers = Object.assign({ 'Content-Type': 'application/json' }, o.headers || {});
+  const r = await fetch(path, o);
+  let j;
+  try { j = await r.json(); } catch (e) { throw new Error('接口返回异常 HTTP ' + r.status); }
+  if (j.code !== 200) throw new Error(j.message || '请求失败');
+  return j.data;
 }
+const qs = o => Object.keys(o).filter(k => o[k] != null && o[k] !== '')
+  .map(k => k + '=' + encodeURIComponent(o[k])).join('&');
 
 let toastTimer = null;
 function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-function money(n) { return Number(n).toFixed(2); }
-/* 餐品图：后端 image 存的是 /images/products/xxx 相对路径，同源页面直接可用 */
-function thumbHtml(img, size) {
-  const s = size || 78;
-  if (!img) {
-    return '<div class="thumb" style="width:' + s + 'px;height:' + s + 'px"></div>';
-  }
-  return '<img class="thumb" style="width:' + s + 'px;height:' + s + 'px;object-fit:cover" src="' + esc(img) + '" alt="">';
-}
-function dt(iso) {
-  if (!iso) return '';
-  const d = new Date(iso.replace(/\.(\d{3})\d+/, '.$1'));
-  if (isNaN(d.getTime())) return iso;
-  const p = n => (n < 10 ? '0' + n : '' + n);
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-const esc = s => String(s === undefined || s === null ? '' : s)
-  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const userId = () => (S.user ? S.user.id : null);
+const needLogin = () => { if (!userId()) { go('login'); return true; } return false; };
 
-/* ============================ 矢量图标 ============================
-   全部内联 SVG，stroke 用 currentColor：外层给 color，图标自己跟着变色，
-   既能跟主题走（tab 高亮红 / 未选灰），也不必依赖 emoji 字体在某些环境能否渲染。
-   尺寸写死在 svg 上，需要更大的场合（空态）另给一份大号。 */
-const ICON = {
-  scooter: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="17.4" r="2.6"/><circle cx="18.4" cy="17.4" r="2.6"/><path d="M8.2 17.4h7.6"/><path d="M18.4 17.4l-1.8-8.2h-3.3"/><path d="M12.4 9.2h3.9"/><rect x="2.2" y="6.4" width="5.2" height="5.8" rx="1.1"/><path d="M7.4 12.2v2.4"/></svg>',
-  store: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8V20h15.6V9.8"/><path d="M2.6 9.8l1.7-5.6h15.4l1.7 5.6z"/><path d="M9.6 20v-5.4h4.8V20"/></svg>',
-  search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="10.6" cy="10.6" r="6.4"/><path d="M15.3 15.3l5.1 5.1"/></svg>',
-  // 返回首页：向左箭头。点餐页顶栏用它回入口页，外送/自取/速取三个通道共用
-  back: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.6L7.4 12l7.4 7.4"/></svg>',
-  cart: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
-  cartBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 3.6h2.4l2.5 10.8h10.6l2.3-7.6H6"/><circle cx="9.2" cy="19" r="1.5"/><circle cx="17.2" cy="19" r="1.5"/></svg>',
-  burger: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.2a8 8 0 0 1 16 0z"/><path d="M4 12.4h16"/><path d="M5.2 15h13.6v1.7a2.6 2.6 0 0 1-2.6 2.6H7.8A2.6 2.6 0 0 1 5.2 16.7z"/></svg>',
-  receipt: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.4h12v17.2l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.4h6M9 12h6"/></svg>',
-  receiptBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.4h12v17.2l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8.4h6M9 12h6"/></svg>',
-  person: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.5"/><path d="M5.2 20c0-3.7 3-6.3 6.8-6.3s6.8 2.6 6.8 6.3"/></svg>',
-  pin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.4s6.6-6.3 6.6-10.8A6.6 6.6 0 0 0 5.4 10.6C5.4 15.1 12 21.4 12 21.4z"/><circle cx="12" cy="10.4" r="2.4"/></svg>',
-  pinBig: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.4s6.6-6.3 6.6-10.8A6.6 6.6 0 0 0 5.4 10.6C5.4 15.1 12 21.4 12 21.4z"/><circle cx="12" cy="10.4" r="2.4"/></svg>',
-  key: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.4" cy="12" r="3.6"/><path d="M12 12h9"/><path d="M18 12v3.2M15 12v2.4"/></svg>',
-  plate: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4"/></svg>',
-  lock: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4.6" y="10.4" width="14.8" height="10" rx="2.2"/><path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8"/></svg>'
-};
-
-/* ============================ 数据动作 ============================ */
-async function loadMenu() {
-  state.categories = await api('/categories');
-}
-
-/** 入口页 hero 图：优先用「肉霸堡双人餐」的官方图，菜单变了就退回第一张有图的餐品 */
-const HERO_IMAGE = '/images/products/100129693.jpg';
-function heroPick() {
-  const all = state.categories.flatMap(c => c.products);
-  const hit = all.find(p => p.image === HERO_IMAGE);
-  if (hit) return hit;
-  return all.find(p => p.image) || { image: HERO_IMAGE, name: '肉霸堡双人餐' };
-}
-
-/* 关键词搜索：停顿 300ms 才发请求，避免每敲一个字都打一次接口 */
-let searchTimer = null;
-function scheduleSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(runSearch, 300);
-}
-async function runSearch() {
-  const kw = state.keyword.trim();
-  if (!kw) {
-    state.searchResults = [];
-    state.searching = false;
-    render();
-    return;
-  }
-  state.searching = true;
+/* ============================ 路由 ============================ */
+function go(page, payload) {
+  S.page = page;
+  if (payload && payload.orderId) S.orderId = payload.orderId;
+  if (page === 'menu') { S.keyword = ''; S.searchResults = null; }
   render();
-  try {
-    state.searchResults = await api('/products/search?keyword=' + encodeURIComponent(kw));
-  } catch (e) {
-    state.searchResults = [];
-    toast(e.message);
-  }
-  state.searching = false;
-  render();
-}
-function clearKeyword() {
-  state.keyword = '';
-  state.searchResults = [];
-  state.searching = false;
-  state.searchFocus = true;
-  render();
-}
-async function loadCart() {
-  if (!state.userId) { state.cartItems = []; state.cartCount = 0; state.cartAmount = 0; return; }
-  state.cartItems = await api('/cart-items?userId=' + state.userId);
-  const s = await api('/cart-items/summary?userId=' + state.userId);
-  state.cartCount = s.count;
-  state.cartAmount = Number(s.amount);
-}
-async function loadOrders() {
-  if (!state.userId) { state.orders = []; return; }
-  state.orders = await api('/orders?userId=' + state.userId);
-}
-async function loadAddresses() {
-  if (!state.userId) { state.addresses = []; return; }
-  state.addresses = await api('/addresses?userId=' + state.userId);
-}
-async function login(username, password) {
-  const user = await api('/users/login', 'POST', { username, password });
-  state.userId = user.id;
-  state.user = user;
-  await loadCart();
-  return user;
-}
-async function addToCart(product) {
-  if (!state.userId) { toast('请先登录'); go('login'); return; }
-  try {
-    await api('/cart-items', 'POST', { userId: state.userId, productId: product.id, quantity: 1 });
-    await loadCart();
-    toast('已加入 ' + product.name);
-    render();
-  } catch (e) { toast(e.message); }
+  const sc = document.querySelector('.home, .list, .goods, .mine');
+  if (sc) sc.scrollTop = 0;
 }
 
-/* ============================ 视图切换 ============================ */
-function go(view) {
-  state.view = view;
-  // 离开点餐页就别再把焦点塞回搜索框
-  if (view !== 'menu') state.searchFocus = false;
-  // 回首页时把搜索状态清干净，否则再从入口进来会停在搜索结果上
-  if (view === 'entry') {
-    state.keyword = '';
-    state.searchResults = [];
-    state.searching = false;
-  }
-  if (view === 'cart') loadCart().then(render).catch(e => toast(e.message));
-  if (view === 'orders') loadOrders().then(render).catch(e => toast(e.message));
-  if (view === 'address') loadAddresses().then(render).catch(e => toast(e.message));
-  if (view === 'mine' && state.userId) {
-    api('/users/' + state.userId).then(u => { state.user = u; render(); }).catch(() => {});
-  }
-  render();
-}
-
-/* ============================ 渲染 ============================ */
 function render() {
-  const screen = document.getElementById('screen');
-  const views = {
-    entry: viewEntry, menu: viewMenu, cart: viewCart, orders: viewOrders,
-    orderDetail: viewOrderDetail, address: viewAddress, mine: viewMine, login: viewLogin
-  };
-  screen.innerHTML = (views[state.view] || viewEntry)();
+  const el = screenEl();
+  switch (S.page) {
+    case 'entry': el.innerHTML = viewEntry(); break;
+    case 'stores': el.innerHTML = viewStores(); break;
+    case 'menu': el.innerHTML = viewMenu(); break;
+    case 'cart': el.innerHTML = viewCart(); break;
+    case 'orders': el.innerHTML = viewOrders(); break;
+    case 'orderDetail': el.innerHTML = viewOrderDetail(); break;
+    case 'address': el.innerHTML = viewAddress(); break;
+    case 'login': el.innerHTML = viewLogin(); break;
+    case 'mine': el.innerHTML = viewMine(); break;
+    default: el.innerHTML = viewEntry();
+  }
+  document.getElementById('sbtitle').textContent =
+    S.page === 'entry' ? '肯德基' : (S.page === 'menu' ? '点餐' : '肯德基');
   bind();
+  after();
 }
 
-/* ---------- 入口页：仿肯德基小程序首屏 ----------
-   自上而下：红色 hero（城市天际线 + KFC 门店 + 外卖骑手 + 车速取汽车）
-     → 三个取餐通道 → 四个功能圆图标 → 会员卡
-     → APP热卖 / 大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab。
-
-   两条边界（按需求定的）：
-   1. 顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏先不做；
-   2. 底部「首页 / 百胜出品 / AI点餐 / 大神卡 / WOW会员中心」只做入口外观，
-      点击给「功能陆续开放」提示，不接任何业务。
-   三个取餐通道进入的是同一个点餐页，只把选择写进 state.pickupType。 */
-
-/* 城市天际线：白色剪影，底部对齐，压在门店后面 */
-function skylineSvg() {
-  return `<svg class="skyline" viewBox="0 0 390 130" preserveAspectRatio="none" aria-hidden="true">
-    <g fill="#ffffff" opacity=".80">
-      <path d="M-4 130V74H10V56H20V44L24 30L28 44V54H36V72H44V52H54V68H62V86
-               A10 10 0 0 1 82 86V64H90V90H98V72H108V96H118V130Z"/>
-      <path d="M286 130V82H294V66L298 52L302 66V80H310V98H320V70H328V90H338V76H348V100
-               H356V84H366V66H376V94H384V78H394V130Z"/>
-    </g>
-    <rect x="0" y="128.6" width="390" height="1.6" fill="#ffffff" opacity=".55"/>
-  </svg>`;
-}
-
-/* 门店 + 骑手 + 车速取汽车，全部矢量绘制，避免依赖任何位图资源 */
-function heroSceneSvg() {
-  return `<svg class="scene" viewBox="0 0 390 214" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-    <ellipse cx="200" cy="212" rx="120" ry="6" fill="#000000" opacity=".10"/>
-    <ellipse cx="68" cy="207" rx="48" ry="4" fill="#000000" opacity=".10"/>
-    <ellipse cx="336" cy="207" rx="50" ry="4" fill="#000000" opacity=".10"/>
-
-    <!-- 门店 -->
-    <polygon points="262,90 284,84 284,206 262,211" fill="#F1F1F1"/>
-    <polygon points="262,80 284,74 284,84 262,90" fill="#D4001F"/>
-    <rect x="126" y="76" width="142" height="9" fill="#E4002B"/>
-    <rect x="132" y="85" width="130" height="36" fill="#FFFFFF"/>
-    <text x="150" y="112" font-family="Arial Black,Arial,Helvetica,sans-serif" font-size="21"
-          font-weight="900" fill="#E4002B" letter-spacing="0.5">KFC</text>
-    <circle cx="236" cy="103" r="15.5" fill="#FFFFFF" stroke="#E4002B" stroke-width="1.4"/>
-    <path d="M227.5 101.4c0-4.8 3.8-7.6 8.5-7.6s8.5 2.8 8.5 7.6v1h-17z" fill="#EFEFEF"/>
-    <path d="M228.5 101.4h15v4.4c0 3.6-3.4 5.8-7.5 5.8s-7.5-2.2-7.5-5.8z" fill="#F6D3B4"/>
-    <circle cx="232" cy="103.6" r="1.15" fill="#3A3A3A"/>
-    <circle cx="240" cy="103.6" r="1.15" fill="#3A3A3A"/>
-    <path d="M229.6 108.8c1.3 1.9 3.4 2.8 6.4 2.8s5.1-.9 6.4-2.8c-2.1.7-4.2 1-6.4 1s-4.3-.3-6.4-1z" fill="#FFFFFF"/>
-    <path d="M236 111.8l-2.7 1.6.5-3.3z" fill="#E4002B"/>
-    <path d="M236 111.8l2.7 1.6-.5-3.3z" fill="#E4002B"/>
-    <rect x="132" y="121" width="130" height="88" fill="#FBFBFB"/>
-    <rect x="132" y="121" width="130" height="4" fill="#E4002B"/>
-    <rect x="141" y="136" width="52" height="64" fill="#B5E1EE"/>
-    <path d="M141 168h52M167 136v64" stroke="#FFFFFF" stroke-width="2.4"/>
-    <rect x="199" y="132" width="56" height="77" fill="#B5E1EE"/>
-    <path d="M227 132v77" stroke="#FFFFFF" stroke-width="2.4"/>
-    <path d="M199 148h28M199 164h28" stroke="#FFFFFF" stroke-width="1.8"/>
-    <rect x="126" y="209" width="142" height="6" fill="#ECECEC"/>
-
-    <!-- 外卖骑手：头盔 + 躯干 + 伸向车把的手臂 -->
-    <circle cx="40" cy="198" r="10" fill="#2E2E2E"/>
-    <circle cx="40" cy="198" r="3.6" fill="#8A8A8A"/>
-    <circle cx="92" cy="198" r="10" fill="#2E2E2E"/>
-    <circle cx="92" cy="198" r="3.6" fill="#8A8A8A"/>
-    <path d="M40 198l12-15h26l14 15z" fill="#E4002B"/>
-    <rect x="20" y="156" width="34" height="30" rx="3" fill="#E4002B"/>
-    <text x="37" y="176" font-family="Arial,sans-serif" font-size="10" font-weight="700"
-          fill="#FFFFFF" text-anchor="middle">KFC</text>
-    <path d="M64 192l14 3" stroke="#B3001F" stroke-width="5" stroke-linecap="round"/>
-    <path d="M66 190l6-24 12-1 4 25z" fill="#E4002B"/>
-    <path d="M82 168l9 11" stroke="#E4002B" stroke-width="5.5" stroke-linecap="round"/>
-    <circle cx="92" cy="180" r="3" fill="#F3C6A2"/>
-    <circle cx="77" cy="155" r="8.8" fill="#F3C6A2"/>
-    <path d="M68.4 154.4a8.6 8.6 0 0 1 17.2 0v1.4H68.4z" fill="#E4002B"/>
-    <path d="M68.4 155.8h17.2" stroke="#C40022" stroke-width="1.3"/>
-
-    <!-- 车速取小屋 + 汽车 -->
-    <rect x="300" y="132" width="76" height="28" fill="#3A3A3A"/>
-    <polygon points="294,132 312,118 376,118 384,132" fill="#E4002B"/>
-    <text x="338" y="151" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="12"
-          font-weight="700" fill="#FFFFFF" text-anchor="middle">车速取</text>
-    <rect x="306" y="160" width="3" height="12" fill="#9A9A9A"/>
-    <rect x="368" y="160" width="3" height="12" fill="#9A9A9A"/>
-    <path d="M284 200v-8c0-3 2-5 5-5.6l15-2.4 12-12h30l12 12 15 2.4c3 .6 5 2.6 5 5.6v8z" fill="#E4002B"/>
-    <path d="M318 186l7-11h20l7 11z" fill="#CFEAF3"/>
-    <path d="M284 190h78" stroke="#C40022" stroke-width="1.2"/>
-    <rect x="283" y="193" width="5" height="4" rx="1.6" fill="#FFD05B"/>
-    <circle cx="304" cy="205" r="9" fill="#2E2E2E"/>
-    <circle cx="304" cy="205" r="3.2" fill="#9E9E9E"/>
-    <circle cx="356" cy="205" r="9" fill="#2E2E2E"/>
-    <circle cx="356" cy="205" r="3.2" fill="#9E9E9E"/>
-  </svg>`;
-}
-
-/* 会员卡左侧头像：上校卡通（圆形，去掉眼镜避免细节糊成一团） */
-function colonelAvatar() {
-  return `<svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
-    <circle cx="24" cy="24" r="23" fill="#FFF6F8"/>
-    <path d="M12.5 22.4c0-7.6 5.2-11.8 11.5-11.8s11.5 4.2 11.5 11.8v1.4h-23z" fill="#EFEFEF"/>
-    <path d="M14 22.4h20v7.4c0 5.2-4.4 8.4-10 8.4s-10-3.2-10-8.4z" fill="#F6D3B4"/>
-    <circle cx="19.6" cy="25.8" r="1.7" fill="#3A3A3A"/>
-    <circle cx="28.4" cy="25.8" r="1.7" fill="#3A3A3A"/>
-    <path d="M15.6 31.2c2 3.9 4.8 5.9 8.4 5.9s6.4-2 8.4-5.9c-2.8 1.1-5.6 1.6-8.4 1.6s-5.6-.5-8.4-1.6z" fill="#FFFFFF"/>
-    <path d="M24 37.8l-4.2 2.6.8-5z" fill="#E4002B"/>
-    <path d="M24 37.8l4.2 2.6-.8-5z" fill="#E4002B"/>
-  </svg>`;
-}
-
-/* 四个功能入口图标（红色描边 / 实心） */
-const TOOL_ICON = {
-  discount: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E4002B" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-      <rect x="3.4" y="5.4" width="17.2" height="14.6" rx="2.4"/>
-      <path d="M7.6 3.2v4.2M16.4 3.2v4.2"/><path d="M3.4 9.4h17.2"/>
-      <text x="12" y="17" font-size="6.6" font-weight="700" fill="#E4002B" stroke="none" text-anchor="middle">省</text>
-    </svg>`,
-  redpack: `<svg width="26" height="26" viewBox="0 0 24 24">
-      <rect x="4.6" y="4" width="14.8" height="16.4" rx="2.6" fill="#E4002B"/>
-      <path d="M4.6 9.2c3.4 2.6 11.4 2.6 14.8 0" stroke="#FFFFFF" stroke-width="1.5" fill="none"/>
-      <circle cx="12" cy="9.2" r="1.9" fill="#FFD05B"/>
-      <path d="M9.4 13.8h5.2M9.4 16.4h3.4" stroke="#FFFFFF" stroke-width="1.1" stroke-linecap="round"/>
-    </svg>`,
-  store: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E4002B" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-      <path d="M4.4 9.8V20h15.2V9.8"/><path d="M2.6 9.8l1.8-5.6h15.2l1.8 5.6z"/>
-      <path d="M9.6 20v-5.4h4.8V20"/>
-    </svg>`,
-  kball: `<svg width="26" height="26" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" fill="#E4002B"/>
-      <path d="M8.4 6.4v11.2M15.6 6.4l-5.6 5.4M10.8 11.6l5 6" stroke="#FFFFFF" stroke-width="2.1"
-            stroke-linecap="round" fill="none"/>
-    </svg>`
-};
-
-/* 底部 tab 图标（深底上的白色） */
-const TAB_ICON = {
-  square: `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="1.8"/>
-      <path d="M3.6 9.2h16.8M9.6 9.2v11.2M14.6 3.6v5.6"/>
-      <circle cx="7" cy="6.4" r="0.9" fill="#FFFFFF" stroke="none"/>
-    </svg>`,
-  crown: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round">
-      <path d="M3.6 8.2l3.9 3.3L12 5.2l4.5 6.3 3.9-3.3-1.9 10H5.5z"/>
-    </svg>`
-};
-
-/* 两张券的插图 */
-const COUPON_ICON = {
-  scooter: `<svg width="34" height="34" viewBox="0 0 40 40">
-      <circle cx="11" cy="29" r="5.4" fill="#E4002B"/><circle cx="11" cy="29" r="2" fill="#FFF"/>
-      <circle cx="31" cy="29" r="5.4" fill="#E4002B"/><circle cx="31" cy="29" r="2" fill="#FFF"/>
-      <path d="M11 29l5-8h13l2 8z" fill="#E4002B"/>
-      <rect x="4" y="12" width="13" height="12" rx="1.6" fill="#E4002B"/>
-      <text x="10.5" y="21" font-size="5" font-weight="700" fill="#FFF" text-anchor="middle">KFC</text>
-      <circle cx="24" cy="12" r="4.6" fill="#F3C6A2"/>
-      <path d="M19.4 12a4.6 4.6 0 0 1 9.2 0z" fill="#E4002B"/>
-    </svg>`,
-  pack: `<svg width="34" height="34" viewBox="0 0 40 40">
-      <rect x="9" y="7" width="22" height="26" rx="3" fill="#E4002B"/>
-      <path d="M9 15c5 3.6 17 3.6 22 0" stroke="#FFFFFF" stroke-width="2" fill="none"/>
-      <circle cx="20" cy="15" r="2.8" fill="#FFD05B"/>
-      <text x="20" y="28" font-size="7" font-weight="700" fill="#FFFFFF" text-anchor="middle">¥</text>
-    </svg>`
-};
-
-/* 从真实菜单里挑一款陈列品：按关键词命中，都不中就用第 idx 个有图的
-   used 里是已占用的**餐品名** —— 四个陈列位必须是四款不同餐品。
-   注意不能按 id 去重：真实菜单里同一款会挂在两个分类下
-   （如「四味小食拼盘」在人气热卖 id=27、炸鸡小食 id=42），
-   按 id 去重挡不住，页面上会并排出现两张一模一样的卡。 */
-function cfPick(keys, idx, used) {
-  const all = state.categories.flatMap(c => c.products).filter(p => p.image);
-  if (!all.length) return null;
-  const free = all.filter(p => !used || !used.has(p.name));
-  const pool = free.length ? free : all;
-  for (let i = 0; i < keys.length; i++) {
-    const hit = pool.find(p => p.name.indexOf(keys[i]) >= 0);
-    if (hit) return hit;
-  }
-  return pool[idx % pool.length];
-}
-
-/* 首页 4 个陈列位：角标和价格照截图写，图与名称用真实菜单，找不到就用兜底候选 */
-function cfCards(tab) {
-  const conf = (tab === 'VIP') ? [
-    { keys: ['生椰'], badge: '', price: '9.9', origin: '22', idx: 3 },
-    { keys: ['拿铁'], badge: '', price: '9.9', origin: '19', idx: 9 },
-    { keys: ['美式'], badge: '', price: '9.9', origin: '18', idx: 15 },
-    { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', idx: 21 }
-  ] : [
-    { keys: ['周末疯狂', '疯狂拼', '拼'], badge: '4件299', price: '29.9', from: true, origin: '63.6', idx: 0 },
-    { keys: ['三柠', '气泡'], badge: '', price: '9.9', origin: '19', idx: 12 },
-    { keys: ['周末疯狂', '疯狂拼', '拼', '桶'], badge: '8件499', price: '49.9', from: true, origin: '127', idx: 1 },
-    { keys: ['生椰', '拿铁'], badge: '', price: '9.9', origin: '22', idx: 40 }
-  ];
-  const used = new Set();
-  return conf.map((c, i) => {
-    const p = cfPick(c.keys, c.idx + i * 7, used);
-    if (!p) return '';
-    used.add(p.name);
-    return `<div class="egc" data-entry="DELIVERY">
-      ${c.badge ? `<span class="bd">${c.badge}</span>` : ''}
-      <div class="pic"><img src="${esc(p.image)}" alt=""></div>
-      <div class="gn">${esc(p.name)}</div>
-      <div class="gp"><b><small>¥</small>${c.price}</b>${c.from ? '<em>起</em>' : ''}<s>¥${c.origin}</s></div>
-    </div>`;
-  }).join('');
-}
-
-/* 深色底部 tab：AI 点餐是中间凸起的大圆 */
-function entryTabBar() {
-  return `<div class="etabbar">
-    <div class="tb on" data-etab="首页"><div class="k-logo">K</div><span>首页</span></div>
-    <div class="tb" data-etab="百胜出品">${TAB_ICON.square}<span>百胜出品</span></div>
-    <div class="tb ai" data-etab="AI点餐"><div class="ball">K</div><span>AI点餐</span></div>
-    <div class="tb" data-etab="大神卡">${TAB_ICON.crown}<span>大神卡</span></div>
-    <div class="tb" data-etab="WOW会员中心"><div class="wow-logo">WOW</div><span>会员中心</span></div>
-  </div>`;
-}
-
+/* ============================ 首页（选餐厅）============================ */
 function viewEntry() {
-  const tab = state.entryTab || 'HOT';
-  return `
-    <div class="entry">
-      <div class="entry-scroll">
-        <div class="ehero">${skylineSvg()}${heroSceneSvg()}</div>
-
-        <div class="echs">
-          <div class="ch" data-entry="DELIVERY">外送到家<em>›</em></div>
-          <div class="ch" data-entry="PICKUP">到店自取<em>›</em></div>
-          <div class="ch" data-entry="DRIVE">开车速取<em>›</em></div>
-        </div>
-
-        <div class="etools">
-          <div class="t" data-etool="优惠全知道"><div class="ic">${TOOL_ICON.discount}</div><span>优惠全知道</span></div>
-          <div class="t" data-etool="爆红包"><div class="ic">${TOOL_ICON.redpack}</div><span>爆红包</span></div>
-          <div class="t" data-etool="肯家到店"><div class="ic">${TOOL_ICON.store}</div><span>肯家到店</span></div>
-          <div class="t" data-etool="多人团餐"><div class="ic">${TOOL_ICON.kball}</div><span>多人团餐</span></div>
-        </div>
-        <div class="edots"><i class="on"></i><i></i></div>
-
-        <div class="evipwrap">
-          <div class="evip" data-etool="大神卡">
-            <div class="ava">${colonelAvatar()}</div>
-            <div class="mid">
-              <div class="l1">元气满满的热美式<span class="tag">大神卡</span><span class="open">开通 ›</span></div>
-              <div class="l2">
-                <span><u>¥金</u>5.1万</span>
-                <span>卡券<b>30</b>张</span>
-                <span>余额<b>0</b>元</span>
-              </div>
-            </div>
-            <div class="wow">WOW</div>
-          </div>
-        </div>
-
-        <div class="etabs">
-          <div class="${tab === 'HOT' ? 'on' : ''}" data-ecf="HOT">APP热卖</div>
-          <div class="${tab === 'VIP' ? 'on' : ''}" data-ecf="VIP">大神卡专区</div>
-        </div>
-        <div class="egrid">${cfCards(tab)}</div>
-
-        <div class="ecps">
-          <div class="ecp" data-etool="免外送费券">
-            <div class="ci">${COUPON_ICON.scooter}</div>
-            <div class="cw"><div class="ct">免外送费券</div><div class="cv">0<small>元</small></div></div>
-            <div class="cb">立即<br>使用</div>
-          </div>
-          <div class="ecp warm" data-etool="外送爆红包">
-            <div class="ci">${COUPON_ICON.pack}</div>
-            <div class="cw"><div class="ct">外送爆红包</div><div class="cv"><small>最高</small>18<small>元</small></div></div>
-          </div>
-        </div>
-      </div>
-      ${entryTabBar()}
-    </div>`;
+  const logged = !!S.user;
+  const uname = logged ? (S.user.nickname || S.user.username) : '欢迎您，请登录';
+  const udesc = logged ? ('V金 ' + (S.vgold == null ? 0 : S.vgold) + ' · 点击查看会员权益')
+                       : '成为肯德基会员享更多优惠';
+  return '' +
+  '<div class="home">' +
+    '<img class="home-banner" src="/images/kfc/banner_default.png" alt="">' +
+    '<div class="privacy-pill" data-act="privacy">隐私政策 ' + svg(P.chev) + '</div>' +
+    '<div class="store-card">' +
+      '<div class="user-row" data-act="user">' +
+        '<img class="ava" src="/images/kfc/icon-avatar-default.png" alt="">' +
+        '<div><div class="uname">' + esc(uname) + '</div><div class="udesc">' + esc(udesc) + '</div></div>' +
+      '</div>' +
+      '<div class="store-block" data-act="stores">' +
+        '<div>' +
+          '<div class="store-title"><span class="nm">' + esc(STORE.name) + '</span>' +
+            '<img src="/images/kfc/icon-store-arrow.png" alt=""></div>' +
+          '<div class="store-sub">距您 ' + STORE.dist + ' · ' + STORE.hours + ' · 营业中</div>' +
+          '<div class="store-tags">' + STORE.tags.map(t => '<span>' + t + '</span>').join('') + '</div>' +
+        '</div>' +
+        '<img class="store-illu" src="/images/kfc/icon-store-nolocation.png" alt="">' +
+      '</div>' +
+    '</div>' +
+    '<div class="start-wrap">' +
+      '<div class="start-btn" data-act="start">' +
+        '<img src="/images/kfc/icon-start-spoon.png" alt="">' +
+        '<div><div class="start-t">开始点餐</div><div class="start-e">Order Now</div></div>' +
+      '</div>' +
+    '</div>' +
+    (S.entryClosed ? '' :
+    '<div class="temp-order">' +
+      '<img src="/images/kfc/icon-horn.png" alt="">' +
+      '<div><div class="to-t">查看临时订单</div><div class="to-d">未登录订单可在此查看</div></div>' +
+      '<div class="to-btn" data-act="temp">点击查看</div>' +
+      '<div class="to-close" data-act="closeTemp">' + svg(P.close) + '</div>' +
+    '</div>') +
+  '</div>';
 }
 
-/* ---------- 点餐首页 ---------- */
-
-/** 单个餐品行：分类浏览态和搜索结果态共用同一份模板 */
-function prodRow(p) {
-  return `
-    <div class="prod">
-      ${thumbHtml(p.image, 78)}
-      <div class="info">
-        <div class="name">${esc(p.name)}</div>
-        <div class="desc">${esc(p.description || '')}</div>
-        <div class="foot">
-          ${p.originPrice && p.originPrice > p.price ? `<span class="origin">¥${money(p.originPrice)}</span>` : ''}
-          <span class="price"><small>¥</small>${money(p.price)}</span>
-          <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
-        </div>
-      </div>
-    </div>`;
+/* ============================ 选择餐厅 ============================ */
+function viewStores() {
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="home">' + svg(P.back) + '</div>' +
+    '<div class="title">选择餐厅</div>' +
+    '<div class="act" data-act="maptoggle">收起地图</div>' +
+  '</div>' +
+  '<div class="searchrow">' +
+    '<div class="city-pick">杭州 <img src="/images/kfc/down.png" alt=""></div>' +
+    '<div class="searchbox">' +
+      '<img src="/images/kfc/search.png" alt="">' +
+      '<input id="storeKw" placeholder="请选择城市或打开定位" value="">' +
+    '</div>' +
+  '</div>' +
+  '<div class="login-tip"><span class="dot">i</span>登录后点餐可获赠V金哦~' +
+    '<span class="go" data-act="login">' + (S.user ? '已登录' : '立即登录') + '</span></div>' +
+  '<div class="maparea">' +
+    '<img src="/images/kfc/map.png" alt="">' +
+    '<img class="pin" src="/images/kfc/noLocation.png" alt="">' +
+    '<div class="locbtn" data-act="refresh">' + svg(P.loc) + '</div>' +
+  '</div>' +
+  '<div class="storetabs">' +
+    '<div class="' + (S.storeTab === 0 ? 'on' : '') + '" data-act="tab0">附近餐厅</div>' +
+    '<div class="' + (S.storeTab === 1 ? 'on' : '') + '" data-act="tab1">收藏&amp;常去</div>' +
+  '</div>' +
+  '<div class="storelist">' +
+    '<div class="store-item">' +
+      '<div class="si-main">' +
+        '<div class="si-name">农林大学店<span class="badge">营业中</span></div>' +
+        '<div class="si-addr">' + esc(STORE.addr) + '</div>' +
+        '<div class="si-meta"><span>' + STORE.hours + '</span><span>到店自取</span><span>外送到家</span></div>' +
+      '</div>' +
+      '<div class="store-dist">' + STORE.dist + '</div>' +
+      '<div class="si-btn on" data-act="start">已选</div>' +
+    '</div>' +
+    '<div style="padding:26px 12.5px;text-align:center;color:#B0B0B0;font-size:11.4px">' +
+      '已按定位（30.258056, 119.724181）排序，仅显示附近可点餐餐厅' +
+    '</div>' +
+  '</div>';
 }
 
-/* 取餐方式文案：入口页有三个通道，不能写成二选一的三元，否则「开车速取」显示成「到店自取」 */
-function pickupLabel(t) {
-  if (t === 'DELIVERY') return '外送到家';
-  if (t === 'DRIVE') return '开车速取';
-  return '到店自取';
-}
-
+/* ============================ 点餐页 ============================ */
 function viewMenu() {
-  if (!state.categories.length) {
-    return `<div class="empty">${ICON.plate}<div>菜单还没加载出来</div>
-      <button class="btn" data-act="reload-menu">重新加载</button></div>`;
-  }
-
-  const searching = state.keyword.trim().length > 0;
-  const top = `
-    <div class="topbar">
-      <div class="row1">
-        <div class="back" data-act="back-home" title="返回首页" aria-label="返回首页">${ICON.back}</div>
-        <span class="store">KFC 点餐</span>
-        <span class="shop">浙江农林大学店</span>
-        <span class="switch" title="取餐方式由入口页决定">${pickupLabel(state.pickupType)}</span>
-      </div>
-      <div class="searchbar">
-        <span class="mag">${ICON.search}</span>
-        <input id="kw" placeholder="搜索餐品 / 拼音首字母，如 YWJ"
-               value="${esc(state.keyword)}" autocomplete="off">
-        <div class="clear ${searching ? '' : 'hide'}" data-act="clear-keyword">×</div>
-      </div>
-    </div>`;
-
-  // 搜索态：左栏收起，右侧整栏铺结果
+  const searching = !!S.keyword;
+  const list = searching ? (S.searchResults || []) : S.products.filter(p => !S.catId || p.categoryId === S.catId);
+  const cartOn = S.cart.count > 0;
+  let body;
   if (searching) {
-    const rows = state.searchResults;
-    const body = state.searching
-      ? `<div class="empty"><div>搜索中…</div></div>`
-      : rows.length
-        ? rows.map(prodRow).join('')
-        : `<div class="empty">${ICON.plate}<div>没找到「${esc(state.keyword.trim())}」相关的餐品</div></div>`;
-    return top + `
-      <div class="result-bar">搜「<b>${esc(state.keyword.trim())}</b>」，共 <b>${rows.length}</b> 个结果</div>
-      <div class="products" id="products">${body}</div>
-      ${cartBar()}
-      ${tabBar('menu')}`;
+    body = '<div class="goods-title">共 <b style="color:#E40030;margin:0 3px">' + list.length +
+      '</b> 个结果 <em>“' + esc(S.keyword) + '”</em></div>' + grid(list);
+  } else {
+    const cat = S.cats.find(c => c.id === S.catId);
+    body = '<div class="goods-title">' + esc(cat ? cat.name : '全部餐品') +
+      ' <em>' + list.length + ' 款</em></div>' + grid(list);
   }
+  const rail = S.cats.map(c =>
+    '<div class="cat ' + (c.id === S.catId ? 'on' : '') + '" data-cat="' + c.id + '">' +
+      (c.icon ? '<img src="' + esc(c.icon) + '" alt="">' : '') +
+      '<span>' + esc(c.name) + '</span></div>').join('');
 
-  const sidebar = state.categories.map((c, i) =>
-    `<div class="item ${i === state.activeCategory ? 'on' : ''}" data-cat="${i}">${esc(c.name)}</div>`).join('');
-
-  const products = state.categories.map((c, ci) =>
-    `<div class="cat-section" data-sec="${ci}"><div class="cat-title">${esc(c.name)}</div>${c.products.map(prodRow).join('')}</div>`).join('');
-
-  return top + `
-    <div class="menu">
-      <div class="sidebar" id="sidebar">${sidebar}</div>
-      <div class="products" id="products">${products}</div>
-    </div>
-    ${cartBar()}
-    ${tabBar('menu')}`;
+  return '' +
+  '<div class="order-head">' +
+    '<div class="oh-row">' +
+      '<div class="oh-back" data-act="home">' + svg(P.back) + '</div>' +
+      '<div class="oh-store">' + esc(STORE.name) + '</div>' +
+      '<div class="oh-switch" data-act="stores">切换</div>' +
+    '</div>' +
+    '<div class="oh-tabs">' +
+      '<div class="' + (S.pickup === 'PICKUP' ? 'on' : '') + '" data-pick="PICKUP">到店自取</div>' +
+      '<div class="' + (S.pickup === 'DELIVERY' ? 'on' : '') + '" data-pick="DELIVERY">外送到家</div>' +
+      '<div class="' + (S.pickup === 'DRIVE' ? 'on' : '') + '" data-pick="DRIVE">开车速取</div>' +
+      '<div class="tsearch">' + svg(P.search) +
+        '<input id="kw" placeholder="搜索餐品" value="' + esc(S.keyword) + '"></div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="menu">' +
+    (searching ? '' : '<div class="rail">' + rail + '</div>') +
+    '<div class="goods" id="goods">' + body + '</div>' +
+  '</div>' +
+  '<div class="cartbar">' +
+    '<div class="cicon ' + (cartOn ? '' : 'off') + '" data-act="cart">' + svg(P.cart) +
+      (cartOn ? '<span class="cnum">' + S.cart.count + '</span>' : '') + '</div>' +
+    '<div class="cinfo">' +
+      '<div class="camt"><small>\u00A5</small>' + Number(S.cart.amount || 0).toFixed(2) + '</div>' +
+      '<div class="csub">' + (cartOn ? ('已选 ' + S.cart.count + ' 件') : '购物车是空的') + '</div>' +
+    '</div>' +
+    '<div class="cgo ' + (cartOn ? '' : 'off') + '" data-act="checkout">去结算</div>' +
+  '</div>';
 }
 
-function cartBar() {
-  const on = state.cartCount > 0;
-  return `
-    <div class="cartbar">
-      <div class="carticon ${on ? 'on' : ''}">${ICON.cart}${on ? `<span class="badge">${state.cartCount}</span>` : ''}</div>
-      <div class="cartinfo" data-act="go-cart">
-        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
-        <div class="sub">${on ? '已选 ' + state.cartCount + ' 件' : '购物车是空的'}</div>
-      </div>
-      <button class="btn" data-act="go-cart" ${on ? '' : 'disabled'}>选好了</button>
-    </div>`;
+function grid(list) {
+  if (!list.length) return '<div class="empty-tip">没有找到相关餐品</div>';
+  return '<div class="grid">' + list.map(p => {
+    const img = p.image ? ('<img src="' + esc(p.image) + '" alt="">') : '';
+    const origin = (p.originPrice && Number(p.originPrice) > Number(p.price))
+      ? '<span class="porigin">\u00A5' + Number(p.originPrice).toFixed(2) + '</span>' : '';
+    const off = (p.stock != null && p.stock <= 0);
+    return '<div class="pcard" data-pid="' + p.id + '">' +
+      '<div class="pic">' + img + '</div>' +
+      '<div class="pname">' + esc(p.name) + '</div>' +
+      (p.description ? '<div class="plabel">' + esc(String(p.description).slice(0, 12)) + '</div>' : '') +
+      '<div class="prow"><span class="pgrp"><span class="pprice"><small>\u00A5</small>' + Number(p.price).toFixed(2) + '</span>' +
+        origin + '</span>' +
+      '<span class="add ' + (off ? 'off' : '') + '" data-add="' + p.id + '">' + svg(P.plus) + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
 }
 
-function tabBar(active) {
-  const tabs = [['menu', ICON.burger, '点餐'], ['orders', ICON.receipt, '订单'], ['mine', ICON.person, '我的']];
-  return `<div class="tabbar">${tabs.map(([k, ic, label]) =>
-    `<div class="${active === k ? 'on' : ''}" data-tab="${k}"><span class="ic-svg">${ic}</span>${label}</div>`).join('')}</div>`;
-}
-
-function navBar(title, backView, action) {
-  return `<div class="navbar">
-    <div class="back" data-back="${backView}" title="返回" aria-label="返回">${ICON.back}</div>
-    <div class="title">${esc(title)}</div>
-    <div class="act">${action || ''}</div>
-  </div>`;
-}
-
-/* ---------- 购物车 ---------- */
+/* ============================ 购物车 ============================ */
 function viewCart() {
-  if (!state.userId) return navBar('购物车', 'menu') + `<div class="empty">${ICON.lock}<div>请先登录</div>
-    <button class="btn" data-tab="login">去登录</button></div>${tabBar('')}`;
-
-  if (!state.cartItems.length) {
-    return navBar('购物车', 'menu') +
-      `<div class="empty">${ICON.cartBig}<div>购物车还是空的</div>
-       <button class="btn" data-back="menu">去点餐</button></div>${tabBar('')}`;
-  }
-
-  const rows = state.cartItems.map(it => `
-    <div class="card">
-      <div class="line">
-        ${thumbHtml(it.productImage, 62)}
-        <div style="flex:1;min-width:0">
-          <div class="name" style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
-          <div class="muted" style="margin-top:6px">¥${money(it.price)}</div>
-          <div class="hint" style="margin-top:2px">小计 ¥${money(it.subtotal)}</div>
-        </div>
-        <div class="stepper">
-          <div class="op" data-cart-minus="${it.id}">−</div>
-          <div class="qty">${it.quantity}</div>
-          <div class="op plusop" data-cart-plus="${it.id}">+</div>
-        </div>
-      </div>
-    </div>`).join('');
-
-  return navBar('购物车', 'menu', '<span data-act="clear-cart">清空</span>') + `
-    <div class="list">
-      ${rows}
-      <div class="card">
-        <div class="field" style="margin-top:0">
-          <label>备注</label>
-          <input id="remark" placeholder="如：不要生菜、少放冰" value="${esc(state.remark)}">
-        </div>
-      </div>
-    </div>
-    <div class="cartbar">
-      <div class="cartinfo" style="cursor:default">
-        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
-        <div class="sub">共 ${state.cartCount} 件 · 到店自取</div>
-      </div>
-      <button class="btn" data-act="checkout">去结算</button>
-    </div>`;
+  const items = S.cartItems;
+  const total = items.reduce((a, i) => a + Number(i.subtotal || 0), 0);
+  const count = items.reduce((a, i) => a + Number(i.quantity || 0), 0);
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="menu">' + svg(P.back) + '</div>' +
+    '<div class="title">购物车</div>' +
+    '<div class="act" data-act="clear">清空</div>' +
+  '</div>' +
+  '<div class="list">' +
+    (items.length ? '<div class="card" style="padding:2px 12px;margin-bottom:0">' + items.map(i =>
+      '<div class="ci">' +
+        (i.productImage ? '<img src="' + esc(i.productImage) + '" alt="">' : '<img alt="">') +
+        '<div class="cd">' +
+          '<div class="cn">' + esc(i.productName) + '</div>' +
+          '<div class="cs">标准</div>' +
+          '<div class="cf"><span class="cp"><small>\u00A5</small>' + Number(i.price).toFixed(2) + '</span>' +
+            '<span class="stepper">' +
+              '<span class="op" data-dec="' + i.id + '">\u2212</span>' +
+              '<span class="qty">' + i.quantity + '</span>' +
+              '<span class="op plusop" data-inc="' + i.id + '">+</span>' +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>').join('') + '</div>'
+      : '<div class="empty">' + svg(P.cart) + '<div>购物车还是空的</div>' +
+        '<button class="btn small" data-act="menu" style="border:0;margin-top:6px">去点餐</button></div>') +
+  '</div>' +
+  (items.length ?
+  '<div class="bottombar">' +
+    '<div class="binfo"><div class="bamt"><small>\u00A5</small>' + total.toFixed(2) + '</div>' +
+      '<div class="bsub">共 ' + count + ' 件</div></div>' +
+    '<button class="btn" data-act="checkout">去结算</button>' +
+  '</div>' : '');
 }
 
-/* ---------- 订单列表 ---------- */
+/* ============================ 订单 ============================ */
 function viewOrders() {
-  const filters = [['ALL','全部'],['PENDING_PAYMENT','待支付'],['ONGOING','进行中'],['DONE','已完成']];
-  const chips = filters.map(([k, label]) =>
-    `<div class="${state.orderFilter === k ? 'on' : ''}" data-filter="${k}">${label}</div>`).join('');
-
-  const visible = state.orders.filter(o => {
-    if (state.orderFilter === 'ALL') return true;
-    if (state.orderFilter === 'PENDING_PAYMENT') return o.status === 'PENDING_PAYMENT';
-    if (state.orderFilter === 'ONGOING') return o.status === 'PAID' || o.status === 'READY';
-    return o.status === 'COMPLETED' || o.status === 'CANCELLED';
-  });
-
-  const body = visible.length ? visible.map(o => {
-    const first = o.items && o.items.length ? o.items[0] : null;
-    let acts = '';
-    if (o.status === 'PENDING_PAYMENT') {
-      acts = `<div class="actions">
-        <button class="btn gray" data-cancel="${o.id}">取消订单</button>
-        <button class="btn" data-pay="${o.id}">立即支付</button></div>`;
-    } else {
-      acts = `<div class="actions"><button class="btn gray" data-detail="${o.id}">查看详情</button></div>`;
-    }
-    return `<div class="card">
-      <div class="line">
-        <span class="hint">订单号 ${esc(o.orderNo)}</span>
-        <span style="margin-left:auto;font-size:13px;font-weight:700;color:${o.status === 'CANCELLED' ? 'var(--sub)' : 'var(--primary)'}">${esc(o.statusText)}</span>
-      </div>
-      <div class="divider"></div>
-      <div class="line">
-        ${thumbHtml(first ? first.productImage : '', 54)}
-        <div style="flex:1;min-width:0;margin-left:4px">
-          <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            ${esc(first ? first.productName : '（无明细）')}</div>
-          <div class="muted" style="margin-top:4px">共 ${o.itemCount} 件 · ${esc(o.pickupTypeText)}</div>
-          <div class="hint" style="margin-top:2px">${dt(o.createdAt)}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="hint">实付</div>
-          <div class="price" style="font-size:15px">¥${money(o.payAmount)}</div>
-        </div>
-      </div>
-      ${o.pickupCode ? `<div class="hint" style="margin-top:8px;color:var(--primary);font-weight:700">取餐码 ${esc(o.pickupCode)}</div>` : ''}
-      ${acts}
-    </div>`;
-  }).join('') : `<div class="empty">${ICON.receiptBig}<div>还没有订单</div></div>`;
-
-  return navBar('我的订单', 'menu', '<span data-act="reload-orders">刷新</span>') +
-    `<div class="chips">${chips}</div><div class="list">${body}</div>${tabBar('orders')}`;
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="home">' + svg(P.back) + '</div>' +
+    '<div class="title">我的订单</div>' +
+    '<div class="act" data-act="refreshOrders">刷新</div>' +
+  '</div>' +
+  '<div class="list">' +
+    (S.orders.length ? S.orders.map(o => {
+      const items = o.items || [];
+      return '<div class="ocard">' +
+        '<div class="oh">' + esc(STORE.name) +
+          '<span class="st ' + (o.status === 'COMPLETED' || o.status === 'CANCELLED' ? 'done' : '') + '">' +
+          esc(o.statusText || o.status) + '</span></div>' +
+        '<div class="ob">' + items.slice(0, 4).map(it =>
+          (it.productImage ? '<img src="' + esc(it.productImage) + '" alt="">' : '<img alt="">')).join('') +
+          (items.length === 0 ? '<div style="font-size:11.4px;color:#B0B0B0">（无明细）</div>' : '') +
+        '</div>' +
+        '<div class="of">' + esc(o.orderNo || ('#' + o.id)) + ' · 共 ' + (o.itemCount || 0) + ' 件' +
+          '<b>实付 <em>' + rmb(o.payAmount != null ? o.payAmount : o.totalAmount) + '</em></b></div>' +
+        '<div class="acts">' +
+          (o.pickupCode ? '<span class="btn small ghost">取餐码 ' + esc(o.pickupCode) + '</span>' : '') +
+          '<span class="btn small ghost" data-detail="' + o.id + '">详情</span>' +
+          (o.status === 'PENDING_PAYMENT' ? '<span class="btn small" data-pay="' + o.id + '">去支付</span>' : '') +
+          (o.status === 'PAID' ? '<span class="btn small ghost" data-cancel="' + o.id + '">取消</span>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('')
+      : '<div class="empty">' + svg(P.order) + '<div>还没有订单</div></div>') +
+  '</div>';
 }
 
-/* ---------- 订单详情 ---------- */
 function viewOrderDetail() {
-  const o = state.currentOrder;
-  if (!o) return navBar('订单详情', 'orders') + `<div class="empty">加载中…</div>${tabBar('')}`;
-  const items = (o.items || []).map(it => `
-    <div class="line" style="padding:10px 0">
-      ${thumbHtml(it.productImage, 54)}
-      <div style="flex:1;min-width:0;margin-left:6px">
-        <div style="font-size:14px;font-weight:700">${esc(it.productName)}</div>
-        <div class="muted" style="margin-top:4px">¥${money(it.price)} × ${it.quantity}</div>
-      </div>
-      <div style="font-size:14px;font-weight:700">¥${money(it.subtotal)}</div>
-    </div>`).join('');
-
-  const acts = o.status === 'PENDING_PAYMENT'
-    ? `<div class="cartbar">
-         <button class="btn gray" style="flex:1" data-cancel="${o.id}">取消订单</button>
-         <button class="btn" style="flex:2;margin-left:8px" data-pay="${o.id}">立即支付</button>
-       </div>` : '';
-
-  return navBar('订单详情', 'orders', '<span data-act="reload-order">刷新</span>') + `
-    <div class="banner">
-      <div class="st">${esc(o.statusText)}</div>
-      ${o.pickupCode ? `<div>取餐码</div><div class="code">${esc(o.pickupCode)}</div>`
-        : `<div class="sub">${o.status === 'CANCELLED' ? '订单已取消，可重新下单' : '支付后会生成取餐码'}</div>`}
-      <div class="sub">${esc(o.pickupTypeText)} · 共 ${o.itemCount} 件</div>
-    </div>
-    <div class="list">
-      <div class="card">
-        <div class="line"><b style="font-size:14px">餐品明细</b><span class="hint" style="margin-left:auto">共 ${o.itemCount} 件</span></div>
-        ${items}
-        <div class="divider"></div>
-        <div class="line"><span class="muted">合计</span>
-          <span class="price" style="margin-left:auto">¥${money(o.payAmount)}</span></div>
-      </div>
-      <div class="card">
-        <div class="line"><span class="muted" style="width:72px">订单号</span><span>${esc(o.orderNo)}</span></div>
-        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">下单时间</span><span>${dt(o.createdAt)}</span></div>
-        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">取餐方式</span><span>${esc(o.pickupTypeText)}</span></div>
-        ${o.payTime ? `<div class="line" style="margin-top:8px"><span class="muted" style="width:72px">支付时间</span><span>${dt(o.payTime)}</span></div>` : ''}
-        <div class="line" style="margin-top:8px"><span class="muted" style="width:72px">备注</span><span>${esc(o.remark || '无')}</span></div>
-      </div>
-    </div>
-    ${acts}${tabBar('orders')}`;
+  const o = S.orders.find(x => String(x.id) === String(S.orderId)) || {};
+  const items = o.items || [];
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="orders">' + svg(P.back) + '</div>' +
+    '<div class="title">订单详情</div>' +
+    '<div class="act"></div>' +
+  '</div>' +
+  '<div class="list">' +
+    '<div class="card" style="text-align:center;padding:20px 12px">' +
+      '<div style="font-size:16.6px;font-weight:700">' + esc(o.statusText || '—') + '</div>' +
+      (o.pickupCode ? '<div style="margin-top:10px;font-size:12.5px;color:#666">取餐码 <b style="font-size:24px;color:#E40030;letter-spacing:2px">' +
+        esc(o.pickupCode) + '</b></div>' : '') +
+      '<div style="margin-top:8px;font-size:11.4px;color:#999">订单号 ' + esc(o.orderNo || '') + '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-h">' + esc(STORE.name) + '</div>' +
+      '<div style="font-size:11.4px;color:#999;line-height:1.5">' + esc(STORE.addr) + '</div>' +
+      '<div class="hr"></div>' +
+      '<div class="row">取餐方式<b>' + esc(o.pickupTypeText || PICKUP_TEXT[o.pickupType] || '到店自取') + '</b></div>' +
+      '<div class="row">下单时间<b>' + esc((o.createdAt || '').replace('T', ' ').slice(0, 16)) + '</b></div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-h">餐品</div>' +
+      (items.length ? items.map(it =>
+        '<div class="ci">' +
+          (it.productImage ? '<img src="' + esc(it.productImage) + '" alt="">' : '<img alt="">') +
+          '<div class="cd"><div class="cn">' + esc(it.productName) + '</div>' +
+            '<div class="cs">x' + it.quantity + '</div>' +
+            '<div class="cf"><span class="cp"><small>\u00A5</small>' + Number(it.price).toFixed(2) + '</span></div>' +
+          '</div></div>').join('') : '<div class="empty" style="padding:20px 0">（无明细）</div>') +
+      '<div class="hr"></div>' +
+      '<div class="row">合计<b class="red">' + rmb(o.totalAmount) + '</b></div>' +
+      '<div class="row">实付<b class="red">' + rmb(o.payAmount != null ? o.payAmount : o.totalAmount) + '</b></div>' +
+    '</div>' +
+  '</div>' +
+  (o.status === 'PENDING_PAYMENT' ?
+    '<div class="bottombar"><div class="binfo"><div class="bamt"><small>¥</small>' +
+      Number(o.payAmount != null ? o.payAmount : o.totalAmount).toFixed(2) + '</div>' +
+      '<div class="bsub">待支付</div></div>' +
+      '<button class="btn" data-pay="' + o.id + '">去支付</button></div>' : '');
 }
 
-/* ---------- 收货地址 ---------- */
+/* ============================ 地址 ============================ */
 function viewAddress() {
-  const f = state.addressForm;
-  const form = `
-    <div class="card">
-      <b style="font-size:14px">新增收货地址</b>
-      <div class="field"><label>收货人</label><input id="f-receiver" value="${esc(f.receiver)}" placeholder="请输入收货人"></div>
-      <div class="field"><label>手机号</label><input id="f-phone" value="${esc(f.phone)}" placeholder="请输入手机号"></div>
-      <div class="field"><label>省份</label><input id="f-province" value="${esc(f.province)}"></div>
-      <div class="field"><label>城市</label><input id="f-city" value="${esc(f.city)}"></div>
-      <div class="field"><label>区县</label><input id="f-district" value="${esc(f.district)}"></div>
-      <div class="field"><label>详细地址</label><input id="f-detail" value="${esc(f.detail)}" placeholder="街道、门牌号"></div>
-      <div class="field"><label style="width:auto;flex:1">设为默认地址</label>
-        <input type="checkbox" id="f-default" ${f.isDefault ? 'checked' : ''} style="width:18px;height:18px"></div>
-      <button class="btn" style="width:100%;margin-top:14px" data-act="save-address">保存地址</button>
-    </div>`;
-
-  const list = state.addresses.length ? state.addresses.map(a => `
-    <div class="card">
-      <div class="line">
-        <b style="font-size:15px">${esc(a.receiver)}</b>
-        <span class="muted">${esc(a.phone)}</span>
-        ${a.isDefault ? '<span style="margin-left:auto;font-size:10px;color:var(--primary);border:1px solid var(--primary);border-radius:4px;padding:0 4px">默认</span>' : ''}
-      </div>
-      <div class="muted" style="margin-top:6px">${esc(a.fullAddress)}</div>
-      <div class="actions">
-        ${a.isDefault ? '' : `<button class="btn gray" data-set-default="${a.id}">设为默认</button>`}
-        <button class="btn gray" data-del-address="${a.id}">删除</button>
-      </div>
-    </div>`).join('') : `<div class="empty" style="flex:none;padding:30px 0">${ICON.pinBig}<div>还没有收货地址</div></div>`;
-
-  return navBar('收货地址', 'mine') + `<div class="list">${form}${list}</div>`;
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="mine">' + svg(P.back) + '</div>' +
+    '<div class="title">收货地址</div>' +
+    '<div class="act red" data-act="addAddr">新增</div>' +
+  '</div>' +
+  '<div class="list">' +
+    (S.addresses.length ? S.addresses.map(a =>
+      '<div class="acard">' +
+        '<div class="an">' + esc(a.receiver) + '<span>' + esc(a.phone) + '</span>' +
+          (a.isDefault ? '<span class="def">默认</span>' : '') + '</div>' +
+        '<div class="aa">' + esc(a.fullAddress || (a.province + a.city + a.district + a.detail)) + '</div>' +
+        '<div class="af">' +
+          (a.isDefault ? '' : '<span class="lnk" data-setdef="' + a.id + '">' + svg(P.star) + '设为默认</span>') +
+          '<span class="lnk" data-deladdr="' + a.id + '">删除</span>' +
+        '</div>' +
+      '</div>').join('')
+      : '<div class="empty">' + svg(P.addr) + '<div>还没有收货地址</div></div>') +
+  '</div>' +
+  '<div class="bottombar" style="height:64px"><button class="btn" style="flex:1" data-act="addAddr">新增收货地址</button></div>';
 }
 
-/* ---------- 我的 ---------- */
+/* ============================ 我的 ============================ */
 function viewMine() {
-  const u = state.user;
-  const head = u ? `
-    <div class="profile">
-      <div class="avatar" style="color:#fff">${ICON.person}</div>
-      <div>
-        <div style="font-size:17px;font-weight:700">${esc(u.nickname || u.username)}<span class="vip">WOW 会员</span></div>
-        <div style="font-size:12px;color:#FFD9DE;margin-top:6px">${esc(u.phone || '未绑定手机号')}</div>
-      </div>
-    </div>` : `
-    <div class="profile">
-      <div class="avatar" style="background:rgba(255,255,255,.2);color:#fff">${ICON.person}</div>
-      <div style="flex:1">
-        <div style="font-size:17px;font-weight:700">未登录</div>
-        <div style="font-size:12px;color:#FFD9DE;margin-top:6px">登录后可下单、查看订单</div>
-      </div>
-      <button class="btn" style="background:#fff" data-tab="login">登录</button>
-    </div>`;
-
-  return head + `
-    <div class="rows">
-      <div class="r" data-tab="orders"><span class="ic">${ICON.receipt}</span>我的订单<span class="ar">›</span></div>
-      <div class="r" data-tab="address"><span class="ic">${ICON.pin}</span>收货地址<span class="ar">›</span></div>
-      <div class="r" data-tab="menu"><span class="ic">${ICON.burger}</span>去点餐<span class="ar">›</span></div>
-      <div class="r" data-tab="entry"><span class="ic">${ICON.store}</span>重新选择取餐方式<span class="ar">›</span></div>
-      <div class="r" data-tab="login"><span class="ic">${ICON.key}</span>切换账号 / 注册<span class="ar">›</span></div>
-    </div>
-    <div class="pad" style="margin-top:20px">
-      <button class="btn ghost" style="width:100%" data-act="demo-login">演示账号一键登录</button>
-      ${state.userId ? '<button class="btn gray" style="width:100%;margin-top:10px" data-act="logout">退出登录</button>' : ''}
-    </div>
-    <div style="height:20px"></div>
-    ${tabBar('mine')}`;
+  const logged = !!S.user;
+  return '' +
+  '<div class="mine">' +
+    '<div class="mhead">' +
+      '<div class="mback" data-act="home">' + svg(P.back) + '</div>' +
+      '<div class="m1">' +
+        '<img class="mava" src="/images/kfc/icon-avatar-default.png" alt="">' +
+        '<div><div class="mn">' + (logged ? esc(S.user.nickname || S.user.username) : '欢迎您，请登录') + '</div>' +
+          '<div class="md">' + (logged ? '肯德基会员 · V金 0' : '成为肯德基会员享更多优惠') + '</div></div>' +
+        (logged ? '' : '<div class="mlogin" data-act="login">立即登录</div>') +
+      '</div>' +
+      '<div class="mvip">' +
+        '<div class="v"><i>优惠券</i><b>0</b></div>' +
+        '<div class="v"><i>V金</i><b>0</b></div>' +
+        '<div class="v"><i>大神卡</i><b>未开通</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="mrows">' +
+      '<div class="mrow" data-act="orders"><span class="ic">' + svg(P.order) + '</span>我的订单' +
+        '<span class="ar">' + svg(P.chev) + '</span></div>' +
+      '<div class="mrow" data-act="address"><span class="ic">' + svg(P.addr) + '</span>收货地址' +
+        '<span class="ar">' + svg(P.chev) + '</span></div>' +
+      '<div class="mrow"><span class="ic">' + svg(P.coupon) + '</span>优惠券' +
+        '<span class="ar">' + svg(P.chev) + '</span></div>' +
+      '<div class="mrow"><span class="ic">' + svg(P.gift) + '</span>V金商城' +
+        '<span class="ar">' + svg(P.chev) + '</span></div>' +
+      (logged ? '<div class="mrow" data-act="logout"><span class="ic">' + svg(P.logout) + '</span>退出登录' +
+        '<span class="ar">' + svg(P.chev) + '</span></div>' : '') +
+    '</div>' +
+    '<div style="text-align:center;font-size:10.4px;color:#C9C9C9;padding:10px 0 24px">' +
+      'KFC 点餐 · 课程设计演示</div>' +
+  '</div>';
 }
 
-/* ---------- 登录 / 注册 ---------- */
+/* ============================ 登录 ============================ */
 function viewLogin() {
-  const lf = state.loginForm;
-  const isLogin = state.loginMode === 'LOGIN';
-  return navBar(isLogin ? '登录' : '注册', 'mine') + `
-    <div style="padding:40px 24px 0">
-      <div style="font-size:26px;font-weight:800;color:var(--primary)">KFC 点餐</div>
-      <div class="muted" style="margin-top:6px">鸿蒙端演示工程 · 前后端联调</div>
-      <div class="field"><label>账号</label><input id="l-username" value="${esc(lf.username)}"></div>
-      <div class="field"><label>密码</label><input id="l-password" type="password" value="${esc(lf.password)}"></div>
-      ${isLogin ? '' : `<div class="field"><label>昵称</label><input id="l-nickname" value="${esc(lf.nickname)}" placeholder="选填"></div>
-      <div class="field"><label>手机号</label><input id="l-phone" value="${esc(lf.phone)}" placeholder="选填"></div>`}
-      <button class="btn" style="width:100%;height:44px;border-radius:22px;margin-top:24px" data-act="submit-login">
-        ${isLogin ? '登 录' : '注 册'}</button>
-      <div style="text-align:center;color:var(--primary);font-size:13px;margin-top:16px;cursor:pointer" data-act="toggle-login-mode">
-        ${isLogin ? '没有账号？去注册' : '已有账号？去登录'}</div>
-      <div class="card" style="margin-top:30px;background:#FFF4E0">
-        <div class="muted">演示账号</div>
-        <div style="margin-top:4px">账号 <b>${DEMO.username}</b>　密码 <b>${DEMO.password}</b></div>
-        <div class="hint" style="margin-top:4px">数据来自后端 t_user 表的种子数据</div>
-      </div>
-    </div>`;
+  return '' +
+  '<div class="navbar">' +
+    '<div class="back" data-act="home">' + svg(P.back) + '</div>' +
+    '<div class="title">登录</div><div class="act"></div>' +
+  '</div>' +
+  '<div class="login">' +
+    '<div class="logo">KFC</div>' +
+    '<div class="lg-sub">登录后可点餐、查看订单</div>' +
+    '<div class="fld"><input id="lu" placeholder="用户名" value="demo" autocomplete="username"></div>' +
+    '<div class="fld"><input id="lp" type="password" placeholder="密码" value="123456" autocomplete="current-password"></div>' +
+    '<div class="sub"><button class="btn" data-act="doLogin">登录</button></div>' +
+    '<div class="tip">登录即表示同意《隐私政策》与《用户协议》</div>' +
+    '<div class="demo" data-act="fillDemo">使用演示账号 demo / 123456</div>' +
+  '</div>';
 }
 
-/* ============================ 事件绑定 ============================ */
+/* ============================ 事件 ============================ */
 function bind() {
-  const screen = document.getElementById('screen');
-
-  // 点分类 → 右侧滚动
-  screen.querySelectorAll('[data-cat]').forEach(el => {
-    el.onclick = () => {
-      const i = Number(el.dataset.cat);
-      state.activeCategory = i;
-      const sec = screen.querySelector(`[data-sec="${i}"]`);
-      const list = document.getElementById('products');
-      if (sec && list) list.scrollTop = sec.offsetTop;
+  const el = screenEl();
+  el.querySelectorAll('[data-act]').forEach(n => {
+    n.addEventListener('click', ev => {
+      const act = n.getAttribute('data-act');
+      onAct(act, ev);
+    });
+  });
+  el.querySelectorAll('[data-cat]').forEach(n => {
+    n.addEventListener('click', () => {
+      S.catId = Number(n.getAttribute('data-cat'));
+      S.keyword = ''; S.searchResults = null;
       render();
-      // 重新渲染后把滚动位置补回去
-      const list2 = document.getElementById('products');
-      const sec2 = screen.querySelector(`[data-sec="${i}"]`);
-      if (list2 && sec2) list2.scrollTop = sec2.offsetTop;
-    };
+    });
   });
-
-  // 右侧滚动 → 左侧高亮
-  const products = document.getElementById('products');
-  if (products) {
-    products.onscroll = () => {
-      const secs = screen.querySelectorAll('[data-sec]');
-      let idx = 0;
-      secs.forEach((s, i) => { if (s.offsetTop - products.scrollTop <= 8) idx = i; });
-      if (idx !== state.activeCategory) {
-        state.activeCategory = idx;
-        screen.querySelectorAll('[data-cat]').forEach((el, i) => el.classList.toggle('on', i === idx));
-      }
-    };
-  }
-
-  screen.querySelectorAll('[data-add]').forEach(el => {
-    el.onclick = () => {
-      const p = state.categories.flatMap(c => c.products).find(x => x.id === Number(el.dataset.add));
-      if (p) addToCart(p);
-    };
+  el.querySelectorAll('[data-pick]').forEach(n => {
+    n.addEventListener('click', () => { S.pickup = n.getAttribute('data-pick'); render(); });
   });
+  el.querySelectorAll('[data-add]').forEach(n => {
+    n.addEventListener('click', ev => { ev.stopPropagation(); addCart(Number(n.getAttribute('data-add'))); });
+  });
+  el.querySelectorAll('[data-inc]').forEach(n => {
+    n.addEventListener('click', () => changeQty(Number(n.getAttribute('data-inc')), +1));
+  });
+  el.querySelectorAll('[data-dec]').forEach(n => {
+    n.addEventListener('click', () => changeQty(Number(n.getAttribute('data-dec')), -1));
+  });
+  el.querySelectorAll('[data-detail]').forEach(n => {
+    n.addEventListener('click', () => { S.orderId = Number(n.getAttribute('data-detail')); go('orderDetail'); });
+  });
+  el.querySelectorAll('[data-pay]').forEach(n => {
+    n.addEventListener('click', () => payOrder(Number(n.getAttribute('data-pay'))));
+  });
+  el.querySelectorAll('[data-cancel]').forEach(n => {
+    n.addEventListener('click', () => cancelOrder(Number(n.getAttribute('data-cancel'))));
+  });
+  el.querySelectorAll('[data-setdef]').forEach(n => {
+    n.addEventListener('click', ev => { ev.stopPropagation(); setDefaultAddress(Number(n.getAttribute('data-setdef'))); });
+  });
+  el.querySelectorAll('[data-deladdr]').forEach(n => {
+    n.addEventListener('click', () => delAddress(Number(n.getAttribute('data-deladdr'))));
+  });
+}
 
-  // 搜索框：输入即搜（300ms 防抖）
+function after() {
   const kw = document.getElementById('kw');
   if (kw) {
-    kw.oninput = () => {
-      state.keyword = kw.value;
-      state.searchFocus = true;
-      scheduleSearch();
-    };
-    // 整页 innerHTML 重绘会把 input 换掉，所以重绘后要把焦点和光标位置还回去，
-    // 否则连续打字打到第二个字就掉焦点了
-    if (state.searchFocus) {
-      kw.focus();
-      const n = kw.value.length;
-      try { kw.setSelectionRange(n, n); } catch (e) { /* 个别环境不支持，忽略即可 */ }
-    }
-  }
-
-  // 入口页的三个取餐通道 + 4 张陈列位：都进同一个点餐页，只把取餐方式记下来
-  screen.querySelectorAll('[data-entry]').forEach(el => {
-    el.onclick = () => {
-      state.pickupType = el.dataset.entry || 'PICKUP';
-      state.view = 'menu';
-      state.searchFocus = false;
-      render();
-    };
-  });
-
-  // 入口页其余入口（功能图标 / 会员卡 / 券 / 底部 tab）：本轮只做外观，点了给提示
-  screen.querySelectorAll('[data-etool],[data-etab]').forEach(el => {
-    el.onclick = () => {
-      toast((el.dataset.etool || el.dataset.etab) + '：功能陆续开放');
-    };
-  });
-
-  // APP热卖 / 大神卡专区 切换
-  screen.querySelectorAll('[data-ecf]').forEach(el => {
-    el.onclick = () => {
-      state.entryTab = el.dataset.ecf;
-      render();
-    };
-  });
-
-  screen.querySelectorAll('[data-tab]').forEach(el => {
-    el.onclick = () => go(el.dataset.tab);
-  });
-
-  screen.querySelectorAll('[data-back]').forEach(el => {
-    el.onclick = () => go(el.dataset.back);
-  });
-
-  const remark = document.getElementById('remark');
-  if (remark) remark.oninput = () => { state.remark = remark.value; };
-
-  // 购物车加减
-  screen.querySelectorAll('[data-cart-minus]').forEach(el => {
-    el.onclick = async () => {
-      const id = Number(el.dataset.cartMinus);
-      const item = state.cartItems.find(x => x.id === id);
-      if (!item) return;
-      try {
-        if (item.quantity - 1 <= 0) await api('/cart-items/' + id + '?userId=' + state.userId, 'DELETE');
-        else await api('/cart-items/' + id, 'PUT', { quantity: item.quantity - 1 });
-        await loadCart(); render();
-      } catch (e) { toast(e.message); }
-    };
-  });
-  screen.querySelectorAll('[data-cart-plus]').forEach(el => {
-    el.onclick = async () => {
-      const id = Number(el.dataset.cartPlus);
-      const item = state.cartItems.find(x => x.id === id);
-      if (!item) return;
-      try {
-        await api('/cart-items/' + id, 'PUT', { quantity: item.quantity + 1 });
-        await loadCart(); render();
-      } catch (e) { toast(e.message); }
-    };
-  });
-
-  screen.querySelectorAll('[data-act]').forEach(el => {
-    el.onclick = () => runAct(el.dataset.act);
-  });
-
-  screen.querySelectorAll('[data-pay]').forEach(el => { el.onclick = () => payOrder(Number(el.dataset.pay)); });
-  screen.querySelectorAll('[data-cancel]').forEach(el => { el.onclick = () => cancelOrder(Number(el.dataset.cancel)); });
-  screen.querySelectorAll('[data-detail]').forEach(el => { el.onclick = () => openDetail(Number(el.dataset.detail)); });
-  screen.querySelectorAll('[data-filter]').forEach(el => {
-    el.onclick = () => { state.orderFilter = el.dataset.filter; render(); };
-  });
-  screen.querySelectorAll('[data-set-default]').forEach(el => {
-    el.onclick = () => setDefaultAddress(Number(el.dataset.setDefault));
-  });
-  screen.querySelectorAll('[data-del-address]').forEach(el => {
-    el.onclick = () => removeAddress(Number(el.dataset.delAddress));
-  });
-
-  // 表单字段（实时回填到 state，渲染时不丢）
-  const grab = (id, apply) => { const e = document.getElementById(id); if (e) e.oninput = () => apply(e.value); };
-  grab('f-receiver', v => state.addressForm.receiver = v);
-  grab('f-phone', v => state.addressForm.phone = v);
-  grab('f-province', v => state.addressForm.province = v);
-  grab('f-city', v => state.addressForm.city = v);
-  grab('f-district', v => state.addressForm.district = v);
-  grab('f-detail', v => state.addressForm.detail = v);
-  const def = document.getElementById('f-default');
-  if (def) def.onchange = () => { state.addressForm.isDefault = def.checked; };
-  grab('l-username', v => state.loginForm.username = v);
-  grab('l-password', v => state.loginForm.password = v);
-  grab('l-nickname', v => state.loginForm.nickname = v);
-  grab('l-phone', v => state.loginForm.phone = v);
-}
-
-async function runAct(act) {
-  try {
-    if (act === 'go-cart') {
-      if (state.cartCount > 0) go('cart'); else toast('先挑点吃的吧');
-    } else if (act === 'back-home') {
-      go('entry');
-    } else if (act === 'clear-keyword') {
-      clearKeyword();
-    } else if (act === 'reload-menu') {
-      await loadMenu(); render();
-    } else if (act === 'reload-orders') {
-      await loadOrders(); render(); toast('已刷新');
-    } else if (act === 'reload-order') {
-      state.currentOrder = await api('/orders/' + state.currentOrder.id); render();
-    } else if (act === 'clear-cart') {
-      await api('/cart-items?userId=' + state.userId, 'DELETE');
-      await loadCart(); render(); toast('购物车已清空');
-    } else if (act === 'checkout') {
-      await checkout();
-    } else if (act === 'demo-login') {
-      const u = await login(DEMO.username, DEMO.password);
-      toast('已登录 ' + (u.nickname || u.username));
-      await loadMenu(); render();
-    } else if (act === 'logout') {
-      state.userId = 0; state.user = null; state.cartItems = []; state.cartCount = 0; state.cartAmount = 0;
-      toast('已退出登录'); render();
-    } else if (act === 'toggle-login-mode') {
-      state.loginMode = state.loginMode === 'LOGIN' ? 'REGISTER' : 'LOGIN'; render();
-    } else if (act === 'submit-login') {
-      await submitLogin();
-    } else if (act === 'save-address') {
-      await saveAddress();
-    }
-  } catch (e) { toast(e.message); }
-}
-
-async function submitLogin() {
-  const lf = state.loginForm;
-  if (!lf.username || !lf.password) { toast('账号和密码都要填'); return; }
-  if (state.loginMode === 'LOGIN') {
-    const u = await login(lf.username, lf.password);
-    toast('登录成功，欢迎 ' + (u.nickname || u.username));
-  } else {
-    const u = await api('/users/register', 'POST', {
-      username: lf.username, password: lf.password, phone: lf.phone, nickname: lf.nickname
+    let t = null;
+    kw.addEventListener('input', () => {
+      const v = kw.value.trim();
+      clearTimeout(t);
+      t = setTimeout(() => doSearch(v), 300);
     });
-    state.userId = u.id; state.user = u;
-    await loadCart();
-    toast('注册成功，欢迎 ' + (u.nickname || u.username));
   }
-  await loadMenu();
-  go('menu');
+  const lu = document.getElementById('lu');
+  if (lu) lu.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  const lp = document.getElementById('lp');
+  if (lp) lp.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 }
 
-async function payOrder(id) {
+async function onAct(act) {
+  switch (act) {
+    case 'home': go('entry'); break;
+    case 'start': go('menu'); loadMenu(); break;
+    case 'stores': go('stores'); break;
+    case 'menu': go('menu'); loadMenu(); break;
+    case 'cart': go('cart'); loadCart(); break;
+    case 'checkout': checkout(); break;
+    case 'login': go('login'); break;
+    case 'user': S.user ? go('mine') : go('login'); break;
+    case 'mine': go('mine'); break;
+    case 'orders': go('orders'); loadOrders(); break;
+    case 'address': if (!needLogin()) { go('address'); loadAddress(); } break;
+    case 'tab0': S.storeTab = 0; render(); break;
+    case 'tab1': S.storeTab = 1; render(); break;
+    case 'refresh': toast('已按定位刷新附近餐厅'); break;
+    case 'refreshOrders': loadOrders(); break;
+    case 'closeTemp': S.entryClosed = true; render(); break;
+    case 'temp': toast('未登录订单功能开发中'); break;
+    case 'privacy': toast('隐私政策（演示占位）'); break;
+    case 'maptoggle': toast('地图已收起（演示占位）'); break;
+    case 'clear': clearCart(); break;
+    case 'doLogin': doLogin(); break;
+    case 'fillDemo': {
+      const u = document.getElementById('lu'), p = document.getElementById('lp');
+      if (u) u.value = 'demo';
+      if (p) p.value = '123456';
+      break;
+    }
+    case 'logout': S.user = null; localStorage.removeItem('kfc_user'); go('entry'); toast('已退出登录'); break;
+    case 'addAddr': toast('新增地址（演示占位）'); break;
+    default: break;
+  }
+}
+
+/* ============================ 业务 ============================ */
+async function loadMenu() {
   try {
-    const o = await api('/orders/' + id + '/pay', 'POST', {});
-    toast('支付成功，取餐码 ' + o.pickupCode);
-    if (state.view === 'orderDetail') state.currentOrder = o;
-    await loadOrders();
+    if (!S.cats.length) {
+      const [cats, prods] = await Promise.all([api('/api/categories'), api('/api/products')]);
+      S.cats = cats || [];
+      S.products = (prods || []).filter(p => p.status !== 0);
+      if (!S.catId && S.cats.length) S.catId = S.cats[0].id;
+      render();
+    }
+    await loadCartSummary();
+  } catch (e) { toast(e.message); }
+}
+
+async function loadCartSummary() {
+  if (!userId()) { S.cart = { count: 0, amount: 0 }; return; }
+  try {
+    const s = await api('/api/cart-items/summary?userId=' + userId());
+    S.cart = { count: s.count || 0, amount: s.amount || 0 };
+    if (S.page === 'menu') render();
+  } catch (e) { /* 静默 */ }
+}
+
+async function doSearch(kw) {
+  S.keyword = kw;
+  if (!kw) { S.searchResults = null; render(); return; }
+  try {
+    const r = await api('/api/products/search?keyword=' + encodeURIComponent(kw));
+    S.searchResults = (r || []).filter(p => p.status !== 0);
+  } catch (e) { S.searchResults = []; }
+  render();
+  const g = document.getElementById('goods');
+  if (g) g.scrollTop = 0;
+}
+
+async function addCart(pid) {
+  if (needLogin()) return;
+  const p = S.products.find(x => x.id === pid);
+  if (p && p.stock != null && p.stock <= 0) { toast('该餐品已售罄'); return; }
+  try {
+    await api('/api/cart-items', {
+      method: 'POST',
+      body: JSON.stringify({ userId: userId(), productId: pid, quantity: 1 })
+    });
+    await loadCartSummary();
+    toast('已加入购物车');
+  } catch (e) { toast(e.message); }
+}
+
+async function loadCart() {
+  if (needLogin()) return;
+  try {
+    S.cartItems = await api('/api/cart-items?userId=' + userId());
     render();
   } catch (e) { toast(e.message); }
 }
 
-async function cancelOrder(id) {
+async function changeQty(id, delta) {
+  const it = S.cartItems.find(x => x.id === id);
+  if (!it) return;
+  const q = Number(it.quantity) + delta;
   try {
-    const o = await api('/orders/' + id + '/cancel', 'POST', {});
-    toast('订单已取消');
-    if (state.view === 'orderDetail') state.currentOrder = o;
-    await loadOrders();
+    if (q <= 0) {
+      await api('/api/cart-items/' + id + '?userId=' + userId(), { method: 'DELETE' });
+      S.cartItems = S.cartItems.filter(x => x.id !== id);
+    } else {
+      await api('/api/cart-items/' + id, { method: 'PUT', body: JSON.stringify({ quantity: q }) });
+      it.quantity = q;
+      it.subtotal = Number(it.price) * q;
+    }
+    await loadCartSummary();
     render();
   } catch (e) { toast(e.message); }
 }
 
-async function openDetail(id) {
+async function clearCart() {
+  if (!S.cartItems.length) return;
   try {
-    state.currentOrder = await api('/orders/' + id);
-    state.view = 'orderDetail';
+    await api('/api/cart-items?userId=' + userId(), { method: 'DELETE' });
+    S.cartItems = [];
+    await loadCartSummary();
     render();
   } catch (e) { toast(e.message); }
 }
 
 async function checkout() {
-  if (!state.userId) { toast('请先登录'); go('login'); return; }
-  if (!state.cartItems.length) { toast('购物车是空的'); return; }
-  // 下单 → 支付（演示环境没接真实支付，下单后直接调支付拿取餐码）
-  // pickupType 仍写死 PICKUP：入口页的外送 / 到店自取只做外观区分，不参与业务
-  const order = await api('/orders', 'POST', {
-    userId: state.userId, pickupType: 'PICKUP', remark: state.remark
-  });
-  const paid = await api('/orders/' + order.id + '/pay', 'POST', {});
-  state.remark = '';
-  await loadCart();
-  await loadOrders();
-  state.currentOrder = paid;
-  state.view = 'orderDetail';
-  render();
-  toast('支付成功，取餐码 ' + paid.pickupCode);
-}
-
-async function saveAddress() {
-  const f = state.addressForm;
-  if (!f.receiver || !f.phone || !f.detail) { toast('收货人、手机号、详细地址都要填'); return; }
-  await api('/addresses', 'POST', {
-    userId: state.userId, receiver: f.receiver, phone: f.phone,
-    province: f.province, city: f.city, district: f.district, detail: f.detail, isDefault: f.isDefault
-  });
-  state.addressForm.detail = '';
-  toast('地址已保存');
-  await loadAddresses();
-  render();
-}
-
-async function setDefaultAddress(id) {
-  const a = state.addresses.find(x => x.id === id);
-  if (!a) return;
+  if (needLogin()) return;
   try {
-    await api('/addresses/' + id, 'PUT', {
-      userId: a.userId, receiver: a.receiver, phone: a.phone,
-      province: a.province, city: a.city, district: a.district, detail: a.detail, isDefault: true
+    const s = await api('/api/cart-items/summary?userId=' + userId());
+    if (!s || !s.count) { toast('购物车是空的'); return; }
+    let addrId = null;
+    try {
+      const list = await api('/api/addresses?userId=' + userId());
+      S.addresses = list || [];
+      const def = S.addresses.find(a => a.isDefault) || S.addresses[0];
+      addrId = def ? def.id : null;
+    } catch (e) { /* 没地址也能下单（到店自取） */ }
+
+    const o = await api('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify({ userId: userId(), addressId: addrId, pickupType: S.pickup, remark: '' })
     });
-    await loadAddresses(); render(); toast('已设为默认地址');
+    toast('下单成功');
+    S.cart = { count: 0, amount: 0 };
+    S.cartItems = [];
+    await loadOrders();
+    S.orderId = o.id;
+    go('orderDetail');
   } catch (e) { toast(e.message); }
 }
 
-async function removeAddress(id) {
+async function loadOrders() {
+  if (!userId()) { S.orders = []; render(); return; }
   try {
-    await api('/addresses/' + id + '?userId=' + state.userId, 'DELETE');
-    await loadAddresses(); render(); toast('已删除');
+    const list = await api('/api/orders?userId=' + userId());
+    S.orders = list || [];
+    // 拉每单明细（列表要展示缩略图与件数）
+    await Promise.all(S.orders.map(async o => {
+      if (o.itemCount && o.itemCount > 0) {
+        try { const d = await api('/api/orders/' + o.id); o.items = d.items || []; }
+        catch (e) { o.items = []; }
+      } else { o.items = []; }
+    }));
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+async function payOrder(id) {
+  try { await api('/api/orders/' + id + '/pay', { method: 'POST' }); toast('支付成功'); await loadOrders(); }
+  catch (e) { toast(e.message); }
+}
+async function cancelOrder(id) {
+  try { await api('/api/orders/' + id + '/cancel', { method: 'POST' }); toast('已取消，库存已回补'); await loadOrders(); }
+  catch (e) { toast(e.message); }
+}
+
+async function loadAddress() {
+  try { S.addresses = await api('/api/addresses?userId=' + userId()) || []; render(); }
+  catch (e) { toast(e.message); }
+}
+async function delAddress(id) {
+  try { await api('/api/addresses/' + id + '?userId=' + userId(), { method: 'DELETE' }); await loadAddress(); }
+  catch (e) { toast(e.message); }
+}
+async function setDefaultAddress(id) {
+  const a = (S.addresses || []).find(x => String(x.id) === String(id));
+  if (!a) { return; }
+  try {
+    await api('/api/addresses/' + id, { method: 'PUT', body: JSON.stringify({
+      userId: a.userId, receiver: a.receiver, phone: a.phone,
+      province: a.province || '', city: a.city || '', district: a.district || '',
+      detail: a.detail, isDefault: true }) });
+    await loadAddress(); toast('已设为默认地址');
+  } catch (e) { toast(e.message); }
+}
+
+async function doLogin() {
+  const u = (document.getElementById('lu') || {}).value || '';
+  const p = (document.getElementById('lp') || {}).value || '';
+  if (!u || !p) { toast('请输入用户名和密码'); return; }
+  try {
+    const user = await api('/api/users/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+    S.user = user;
+    localStorage.setItem('kfc_user', JSON.stringify(user));
+    toast('登录成功');
+    await loadCartSummary();
+    go('menu');
+    loadMenu();
   } catch (e) { toast(e.message); }
 }
 
 /* ============================ 启动 ============================ */
-function tickClock() {
-  const d = new Date();
-  const p = n => (n < 10 ? '0' + n : '' + n);
-  document.getElementById('clock').textContent = p(d.getHours()) + ':' + p(d.getMinutes());
-}
-setInterval(tickClock, 20000);
-tickClock();
+async function boot() {
+  document.getElementById('apiBase').textContent = location.origin;
+  try {
+    const u = JSON.parse(localStorage.getItem('kfc_user') || 'null');
+    if (u && u.id) S.user = u;
+  } catch (e) { /* ignore */ }
 
-(async function boot() {
-  const health = document.getElementById('health');
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
   try {
-    await loadMenu();
-    health.textContent = '已连接（' + state.categories.length + ' 个分类）';
+    const r = await fetch('/api/categories');
+    document.getElementById('health').textContent = r.ok ? '正常' : ('HTTP ' + r.status);
   } catch (e) {
-    health.textContent = '连不上：' + e.message;
+    document.getElementById('health').textContent = '连接失败';
   }
-  // 和其他端保持一致：默认用演示账号自动登录，省掉每次手动登录
-  try {
-    if (!state.userId) {
-      await login(DEMO.username, DEMO.password);
-      await loadMenu();
-    }
-  } catch (e) {
-    console.warn('自动登录失败', e);
-  }
+
   render();
-})();
+  loadMenu();
+  if (S.user) loadCartSummary();
+}
+boot();
 </script>
 </body>
 </html>

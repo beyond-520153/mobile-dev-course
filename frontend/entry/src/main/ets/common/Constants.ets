@@ -1,7 +1,9 @@
 /**
  * 全局常量与主题
  *
- * 配色参照肯德基小程序：主色为 KFC 红，辅色为炸鸡黄，页面底色浅灰、卡片纯白。
+ * 配色与尺寸取自肯德基手机端 H5（order.kfc.com.cn/preorder-taro）的运行期 CSS：
+ * 主色 rgb(228,0,48)；正文 rgb(35,30,31)；次要 #666；提示 #999；
+ * 页面底色 #F8F8F8；卡片圆角 0.5rem（390 视口下 10.4vp）。
  */
 export class Constants {
 
@@ -15,16 +17,13 @@ export class Constants {
    *      → 'http://127.0.0.1:8090'
    *
    *   ② 真机 + 与电脑同一个 WLAN
-   *      → 'http://10.205.201.67:8090'（10.205.201.67 是本机无线网卡 IP，
-   *        换网络环境后要重新查：cmd 里 ipconfig 看「无线局域网适配器 WLAN」的 IPv4）
-   *      ⚠️ 需要放行 Windows 防火墙的 8090 入站，否则手机连不上（见 README 第五章）
+   *      → 'http://10.205.201.67:8090'（本机无线网卡 IP，换网络要重新查）
    *
    *   ③ DevEco 模拟器
-   *      先试 'http://10.0.2.2:8090'（模拟器访问宿主机的约定地址），
-   *      不通再用上面的局域网 IP。
+   *      → 'http://10.0.2.2:8090'
    *
-   * 端口用 8090：8080 在开发机上被另一个常驻程序占用了，详见 backend/application.yml。
-   * 手机上的 127.0.0.1 指的是手机自己，所以方案 ②③ 都不能写 127.0.0.1（方案①除外，那是 hdc 转发的）。
+   * 端口用 8090：8080 在开发机上被另一个常驻程序占用了。
+   * 手机上的 127.0.0.1 指手机自己，②③ 都不能写 127.0.0.1（① 除外，那是 hdc 转发的）。
    */
   static readonly BASE_URL: string = 'http://10.205.201.67:8090';
 
@@ -34,40 +33,65 @@ export class Constants {
   /** 请求超时（毫秒） */
   static readonly TIMEOUT: number = 10000;
 
-  /** 演示账号：后端种子数据里就有，首页会自动用它登录以便直接联调 */
+  /** 演示账号 */
   static readonly DEMO_USERNAME: string = 'demo';
   static readonly DEMO_PASSWORD: string = '123456';
 }
 
-/** 主题色 */
+/** 主题色与尺寸（全部对齐官方 H5） */
 export class Theme {
 
-  /** KFC 红 —— 顶栏、价格、主按钮 */
-  static readonly PRIMARY: string = '#E4002B';
-  /** 深红 —— 按下态 */
-  static readonly PRIMARY_DARK: string = '#C10023';
-  /** 炸鸡黄 —— 会员/角标点缀 */
-  static readonly ACCENT: string = '#FFC72C';
+  /** 主色 —— 官方 rgb(228,0,48) */
+  static readonly PRIMARY: string = '#E40030';
+  /** 按下态 */
+  static readonly PRIMARY_DARK: string = '#C1002A';
+  /** 会员金 */
+  static readonly ACCENT: string = '#F8E2B7';
 
   /** 页面底色 */
-  static readonly BG: string = '#F5F5F5';
+  static readonly BG: string = '#F8F8F8';
   /** 卡片白 */
   static readonly CARD: string = '#FFFFFF';
-  /** 侧边分类栏底色 */
+  /** 分类栏底色 */
   static readonly SIDEBAR_BG: string = '#F7F7F7';
 
-  /** 主文字 */
-  static readonly TEXT: string = '#1A1A1A';
+  /** 主文字 rgb(35,30,31) */
+  static readonly TEXT: string = '#231E1F';
   /** 次要文字 */
-  static readonly TEXT_SUB: string = '#8A8A8A';
-  /** 极浅文字 */
-  static readonly TEXT_HINT: string = '#B5B5B5';
+  static readonly TEXT_SUB: string = '#666666';
+  /** 提示文字 */
+  static readonly TEXT_HINT: string = '#999999';
   /** 分隔线 */
-  static readonly DIVIDER: string = '#EFEFEF';
+  static readonly DIVIDER: string = '#E6E6E6';
 
-  /** 餐品占位图底色 */
-  static readonly THUMB_BG: string = '#FFF4E0';
+  /** 餐品占位底 */
+  static readonly THUMB_BG: string = '#FFF8EE';
 
+  /** 卡片圆角 */
+  static readonly RADIUS: number = 10.4;
   /** 页面左右留白 */
-  static readonly GAP: number = 12;
+  static readonly GAP: number = 12.5;
+  /** 卡片阴影 */
+  static readonly SHADOW: string = 'rgba(217,217,217,0.5)';
+}
+
+/** 门店信息：浙江农林大学店（真实门店） */
+export class StoreInfo {
+  static readonly NAME: string = '肯德基(农林大学店)';
+  static readonly SHORT: string = '农林大学店';
+  static readonly ADDR: string = '杭州市临安区锦北街道武肃街666号 浙江农林大学东湖食堂1层外侧档口';
+  static readonly HOURS: string = '06:30-22:00';
+  static readonly DIST: string = '0.1km';
+  static readonly TAGS: string[] = ['到店自取', '外送到家', '开车速取'];
+}
+
+/** 取餐方式三路文案（漏一个就会错显「到店自取」） */
+export function pickupLabel(type: string): string {
+  if (type === 'DELIVERY') {
+    return '外送到家';
+  }
+  if (type === 'DRIVE') {
+    return '开车速取';
+  }
+  return '到店自取';
 }
