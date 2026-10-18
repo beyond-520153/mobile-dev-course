@@ -132,7 +132,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
 ```
 应看到 PostgreSQL `accepting connections` 和 Redis `PONG`（`status.bat` 可复查）。
 
-### 2. 建表 + 灌数据（按 V1 → V2 → V3 → V4 顺序，各跑一次）
+### 2. 建表 + 灌数据（按 V1 → V2 → V3 → V4 → V5 顺序，各跑一次）
 
 ```bash
 PSQL="D:\devtools\postgresql-17\bin\psql.exe"
@@ -140,6 +140,7 @@ $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V1__init_sch
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V2__kfc_real_menu.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V3__product_search.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V4__member.sql
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V5__member_benefit.sql
 ```
 
 （Windows 上直接写三行 `"D:\devtools\postgresql-17\bin\psql.exe" -U postgres -d kfc -f <脚本路径>` 即可。）
@@ -150,12 +151,14 @@ $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V4__member.s
 | `V2__kfc_real_menu.sql` | **换成 KFC 官方真实菜单**：加 `origin_price` 列、清空餐品相关表、写入 13 分类 / 80 餐品 | ✅ 先 DELETE 再 INSERT |
 | `V3__product_search.sql` | 加 `pinyin_initials` 列并写入 80 行拼音首字母（供搜索用） | ✅ `ADD COLUMN IF NOT EXISTS` |
 | `V4__member.sql` | 建 3 张会员表（`t_member` / `t_member_plan` / `t_member_card`）+ 4 个档位种子 + 给已有用户补会员账户 | ✅ 用了 `IF NOT EXISTS` / `ON CONFLICT DO NOTHING` |
+| `V5__member_benefit.sql` | 建 `t_benefit_rule`（权益规则）/ `t_benefit_usage`（每日次数流水）+ 给 `t_order` 加 `delivery_fee` / `discount_amount` / `benefit_codes` / `benefit_detail` 四列 + 6 条规则种子 | ✅ 用了 `IF NOT EXISTS` / `ON CONFLICT DO UPDATE` |
 
 ⚠️ **四份都要跑**。后端的 `Product` 实体已经有 `originPrice` / `pinyinInitials` 两个字段，
 而 `application.yml` 里 `ddl-auto: none`（表结构完全由脚本管，Hibernate 不会自己加列）——
 只跑 V1 的话，表里缺这两列，**任何查询餐品的接口都会报 `column does not exist`，整个点餐页起不来**。
 同理，漏跑 `V4` 的话 `/api/member/*` 全部报 `relation "t_member" does not exist`，
-入口页会员卡与会员中心会显示「--」。
+入口页会员卡与会员中心会显示「--」。漏跑 `V5` 的话下单接口会报
+`column "delivery_fee" does not exist`，点餐页能看不能买。
 
 跑完 `V3` 可以用这条确认数据齐了（**别名用英文**，Windows 下 psql 命令行传中文参数会报
 `invalid byte sequence for encoding "UTF8"`）：
@@ -296,11 +299,11 @@ http://localhost:8090/preview.html
 | 分类 | `GET /categories`（含餐品）、`GET/POST/PUT/DELETE /categories[/{id}]` |
 | 餐品 | `GET /products?categoryId&keyword`、`GET /products/search?keyword`、`GET /products/{id}`、`POST/PUT/DELETE /products[/{id}]` |
 | 购物车 | `GET /cart-items?userId`、`GET /cart-items/summary?userId`、`POST /cart-items`、`PUT /cart-items/{id}`、`DELETE /cart-items?userId` |
-| 订单 | `GET /orders?userId`、`GET /orders/{id}`、`POST /orders`、`POST /orders/{id}/pay`、`POST /orders/{id}/cancel`、`DELETE /orders/{id}` |
+| 订单 | `GET /orders?userId`、`GET /orders/{id}`、`GET /orders/quote?userId&pickupType`（结算试算）、`POST /orders`、`POST /orders/{id}/pay`、`POST /orders/{id}/cancel`、`DELETE /orders/{id}` |
 | 订单明细 | `GET /order-items?orderId` |
 | 地址 | `GET /addresses?userId`、`POST/PUT/DELETE /addresses[/{id}]` |
 | 用户 | `POST /users/login`、`POST /users/register`、`GET /users/{id}`、`PUT /users/{id}` |
-| 会员 | `GET /member/summary?userId`、`GET /member/plans?cardType`、`GET /member/cards?userId`、`POST /member/cards`（开通/续费） |
+| 会员 | `GET /member/summary?userId`、`GET /member/plans?cardType`、`GET /member/cards?userId`、`POST /member/cards`（开通/续费）、`GET /member/benefits?userId`（可享权益+今日剩余次数） |
 
 `Result` 结构：`{ code, message, data }`，业务成功 `code=200`。
 HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 接口或资源不存在 / 500 业务规则不通过 / 5000 系统异常）。
@@ -342,6 +345,61 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 缓存：`GET /member/summary` 走 Redis `kfc:member:summary:{userId}`，TTL 60 秒；
 开卡、累计 V金 都会主动 `evict`，所以前端开完卡立刻刷新就能看到新数字。
 `remainDays` 由后端算（`Duration.between`），前端不做日期减法——避免设备时区不同算出不同天数。
+
+---
+
+### 大神卡权益与订单优惠结算（V5）
+
+规则不是写死在 Java 里，而是落在 `t_benefit_rule` 表里——官方一改价、一调时段，改数据即可，
+不用重新发版。`BenefitServiceImpl` 只认四种 `benefit_type`：
+
+| `benefit_type` | 含义 | 用到的参数 |
+|---|---|---|
+| `PERCENT_OFF` | 打折（两件套 6 折） | `discount_value=0.60`、`min_quantity=2`、`max_discount` 封顶 |
+| `AMOUNT_OFF` | 立减 | `discount_value=5.00`、`threshold_amount` 门槛 |
+| `FIXED_PRICE` | 特价（咖啡 10 元） | `discount_value=10.00`，只对原价高于特价的餐品生效 |
+| `FREE_DELIVERY` | 免配送费 | 抵的是外送费，不动商品金额 |
+
+六条种子规则（`V5` 脚本写入，与 2026 年官方权益对齐）：
+
+| 规则 | 官方口径 | 本项目落地 |
+|---|---|---|
+| `GOD_BREAKFAST_40OFF` | 每日 1 次早餐两件套 6 折 | 07:00-10:30，「饮品 + 蛋挞甜品」两件 6 折，单笔最高减 20 |
+| `GOD_COFFEE_10` | 每日 1 杯指定咖啡 10 元 | 「金奖豆K咖啡」7 款任选 1 杯 10 元（原价低于 10 元不参与） |
+| `GOD_DESSERT_40OFF` | 每日 1 次下午茶两件套 6 折 | 14:00-17:00，「蛋挞甜品 + 冰淇淋」两件 6 折，最高减 20 |
+| `GOD_COMBO_MINUS5` | 晚餐人气套餐立减 | 「人气热卖 / 桶多人餐 / 多人团餐」满 30 元立减 5 元，每日 1 次 |
+| `GOD_FREE_DELIVERY` | 每天最多 2 次外送免配送费 | 仅外送、商品满 29 元免 9 元配送费 |
+| `COFFEE_DAILY_MINUS8` | 咖啡卡每日 1 杯 | 咖啡卡会员买「金奖豆K咖啡」立减 8 元 |
+
+> 官方「早餐」在我们这套菜单里没有独立分类（菜单源自正餐 13 分类），
+> 所以映射到「饮品 + 蛋挞甜品」并加了 07:00-10:30 的时段限制；
+> 「开卡赠 88 元券包」也简化成赠 2 张券（券还没有实体表）。
+
+**结算链路（算价只有一条路）**
+
+1. `GET /orders/quote?userId&pickupType` 试算：只读，不扣库存、不扣次数，结算页可反复调；
+2. `POST /orders` 内部调**同一个** `BenefitService.quote()`，落库
+   `total_amount`（商品金额）、`delivery_fee`、`discount_amount`、`pay_amount`
+   以及 `benefit_codes`（用掉的规则编码）、`benefit_detail`（展示文案）；
+3. 下单成功调 `consume()` 扣当日次数（`t_benefit_usage` 上 `用户 + 规则 + 日期` 唯一，当计数器用）；
+4. 取消 / 店员作废订单调 `release()` 把次数按**订单创建那天**还回去（跨零点取消不会误加今天的额度）。
+
+**为什么是按「件」算而不是按订单总额打折**：购物车会展开成一件件单价（`Unit`），
+每条规则只认自己适用分类里、还没被别的规则用掉的件，命中后标记已用。
+这样同时持大神卡 + 咖啡卡时，同一杯咖啡只会被抵扣一次（大神卡 10 元优先，咖啡卡的 8 元就没件可减了）。
+
+**用户 DTO 新增的大神卡属性**（`UserVO`，登录 / 注册 / `GET /users/{id}` 都带）：
+
+| 字段 | 说明 |
+|---|---|
+| `godCard` | 是否持有生效中的大神卡，下单时后端按它决定是否套用大神卡权益 |
+| `godCardType` / `godCardName` | `GOD` / 季卡 |
+| `godCardNo` / `godCardExpireAt` / `godCardRemainDays` | 卡号、到期时间、剩余天数（后端算） |
+| `memberLevel` | 持有任意生效卡（大神卡或咖啡卡）即 `WOW会员` |
+| `benefits` | 当前可享权益清单，带 `usedToday` / `remaining` / `usable` / `unavailableReason` |
+
+> 没有在 `t_user` 上加一个 `is_god_card` 布尔列——那是会过期的冗余字段，迟早不一致。
+> 全部按 `t_member_card` 当刻的 `expire_at` 现算。
 
 ---
 
@@ -410,6 +468,17 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 | **支付累计 V金**：实付 313.40 → V金 51000→51313 | ✅ |
 | **会员概要不串数据**：开卡后 Redis `kfc:member:summary` 主动失效，前端立刻看到新值 | ✅ |
 | **两端同源**：入口页会员卡 / WOW 中心 / 大神卡 在预览页与鸿蒙端读同一套接口，数字一致（券 29） | ✅ |
+| **无卡原价**：拿铁 19 + 红豆派 ×2 16 → 商品 35、优惠 0、应付 35 | ✅ |
+| **大神卡咖啡 10 元**：开季卡后同一单 → 优惠 9.00（拿铁 19→10）、应付 26 | ✅ |
+| **外送免配送费**：同单改外送 → 商品 35 + 外送费 9 − 咖啡 9 − 配送 9 = 应付 26 | ✅ |
+| **套餐立减**：牛牛双人餐 90.60 → 优惠 5、应付 85.60 | ✅ |
+| **两件套 6 折**：红豆派 ×2（16）→ 优惠 6.40、应付 9.60（临时放开时段窗口验证，验完已还原 14:00-17:00） | ✅ |
+| **每日限次**：当天第二杯咖啡不再打折，提示「今日权益次数已用完」 | ✅ |
+| **取消归还次数**：取消订单后优惠重新可用（0 → 9.00） | ✅ |
+| **下单落库**：订单 `total=35 / discount=9 / pay=26`，`benefit_detail=「每日 1 杯咖啡 10 元 -9.00（拿铁 ×1）」` | ✅ |
+| **咖啡卡独立生效**：只持咖啡卡（无大神卡）买拿铁 19 → 优惠 8、应付 11，`godCard=false` 但 `memberLevel=WOW会员` | ✅ |
+| **预览页显示**：点餐页餐车条 / 购物车「合计 ¥26 · 大神卡 季卡已省 ¥9.00」，订单详情「商品金额 35 / 大神卡优惠 −9 / 实付 26」 | ✅ |
+| **鸿蒙端**：`hvigor assembleHap` BUILD SUCCESSFUL（购物车新增优惠行） | ✅ |
 
 ### 前后端字段级一致性审计（脚本核对，全部通过）
 
@@ -477,8 +546,10 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 3. **购物车「改数量」接口 `PUT /cart-items/{id}` 没带 `userId`**，
    服务端用的是 `findById` 而不是 `findByIdAndUserId`。和「删除」接口的防护力度不一致，
    等第 1 条一起处理。
-4. **演示账号里留了 6 单测试订单**（`demo`，含 制作中/已取消 两种状态），
+4. **演示账号里留了 16 单测试订单**（`demo`，含 制作中/已取消 两种状态），
    正好方便看订单列表的状态筛选。想清空的话删 `orders`/`order_items` 里 `user_id=1` 的行即可。
+5. **权益「每日 N 次」是「下单即扣」**：下单锁库存的同时就把次数占了，未支付超时不会自动归还
+   （目前只能靠取消订单归还）。接真实支付回调时需要补一个超时关单的定时任务。
 
 ---
 
@@ -490,4 +561,6 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 - [ ] 登录态改为 token 拦截器统一注入（现为首页自动登录演示账号）
 - [ ] 后台管理端（餐品/分类/订单的增删改页面）
 - [ ] 支付流程接入（现为直接改状态的假支付）
-- [ ] 用户侧地址选择、外送配送费规则
+- [x] 用户侧地址选择、外送配送费规则（V5：外送 9 元，大神卡满 29 元免）
+- [ ] 卡券实体化：`t_member_coupon` + 券列表页，把「开卡赠 2 券」从计数改成真插两条券
+- [ ] 权益次数超时归还（未支付关单时自动 `release`）

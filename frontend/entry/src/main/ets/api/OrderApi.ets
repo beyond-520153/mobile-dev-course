@@ -1,5 +1,6 @@
 import { HttpClient } from './HttpClient';
 import { Order } from '../model/Order';
+import { OrderQuote } from '../model/OrderQuote';
 
 /**
  * 下单入参，对应后端 domain/dto/OrderCreateDTO.java
@@ -31,6 +32,15 @@ export class OrderApi {
 
   static detail(id: number): Promise<Order> {
     return HttpClient.get<Order>(`/api/orders/${id}`);
+  }
+
+  /**
+   * 结算试算：套用会员卡权益算应付金额
+   *
+   * 只读接口，不扣库存、不扣权益次数，结算页可以放心反复调。
+   */
+  static quote(userId: number, pickupType: string): Promise<OrderQuote> {
+    return HttpClient.get<OrderQuote>(`/api/orders/quote?userId=${userId}&pickupType=${pickupType}`);
   }
 
   static create(body: OrderCreateBody): Promise<Order> {

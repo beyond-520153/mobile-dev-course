@@ -238,7 +238,61 @@ struct OrderDetailPage {
               Divider().color(Theme.DIVIDER).margin({ top: 6, bottom: 6 })
 
               Row() {
-                Text('合计')
+                Text('商品金额')
+                  .fontSize(12)
+                  .fontColor(Theme.TEXT_SUB)
+                  .layoutWeight(1)
+                Text(`¥${this.order.totalAmount}`)
+                  .fontSize(12)
+                  .fontColor(Theme.TEXT)
+              }
+              .width('100%')
+              .padding({ top: 3, bottom: 3 })
+              .alignItems(VerticalAlign.Center)
+
+              if (this.order.deliveryFee > 0) {
+                Row() {
+                  Text('外送费')
+                    .fontSize(12)
+                    .fontColor(Theme.TEXT_SUB)
+                    .layoutWeight(1)
+                  Text(`¥${this.order.deliveryFee}`)
+                    .fontSize(12)
+                    .fontColor(Theme.TEXT)
+                }
+                .width('100%')
+                .padding({ top: 3, bottom: 3 })
+                .alignItems(VerticalAlign.Center)
+              }
+
+              if (this.order.discountAmount > 0) {
+                Row() {
+                  Text('大神卡优惠')
+                    .fontSize(12)
+                    .fontColor(Theme.TEXT_SUB)
+                    .layoutWeight(1)
+                  Text(`-¥${this.order.discountAmount}`)
+                    .fontSize(12)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(Theme.PRIMARY)
+                }
+                .width('100%')
+                .padding({ top: 3, bottom: 3 })
+                .alignItems(VerticalAlign.Center)
+
+                if (this.order.benefitDetail !== undefined) {
+                  Text(this.order.benefitDetail)
+                    .fontSize(10)
+                    .fontColor(Theme.TEXT_HINT)
+                    .width('100%')
+                    .margin({ top: 2, bottom: 4 })
+                }
+              }
+
+              Divider().color(Theme.DIVIDER).margin({ top: 6, bottom: 6 })
+
+              Row() {
+                Text('实付')
                   .fontSize(13)
                   .fontColor(Theme.TEXT_SUB)
                   .layoutWeight(1)

@@ -20,6 +20,9 @@ public class CartItemVO {
     private Long userId;
     private Long productId;
 
+    /** 所属分类：结算时判断是否命中大神卡权益（如「金奖豆K咖啡 10 元」）要用 */
+    private Long categoryId;
+
     private String productName;
     private String productImage;
     private BigDecimal price;

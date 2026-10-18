@@ -511,6 +511,8 @@ const state = {
   cartItems: [],
   cartCount: 0,
   cartAmount: 0,
+  /** 结算试算结果：持大神卡时后端把优惠算好，前端只显示 */
+  quote: null,
   orders: [],
   orderFilter: 'ALL',
   currentOrder: null,
@@ -639,11 +641,35 @@ function clearKeyword() {
   render();
 }
 async function loadCart() {
-  if (!state.userId) { state.cartItems = []; state.cartCount = 0; state.cartAmount = 0; return; }
+  if (!state.userId) {
+    state.cartItems = []; state.cartCount = 0; state.cartAmount = 0; state.quote = null;
+    return;
+  }
   state.cartItems = await api('/cart-items?userId=' + state.userId);
   const s = await api('/cart-items/summary?userId=' + state.userId);
   state.cartCount = s.count;
   state.cartAmount = Number(s.amount);
+  // 结算试算：只读接口，失败不影响购物车本身
+  try {
+    state.quote = state.cartItems.length
+      ? await api('/orders/quote?userId=' + state.userId + '&pickupType=PICKUP')
+      : null;
+  } catch (e) {
+    state.quote = null;
+  }
+}
+
+/** 应付金额：有优惠时用服务端算的，没有就用购物车合计 */
+function cartPayAmount() {
+  const q = state.quote;
+  return q && Number(q.discountAmount) > 0 ? Number(q.payAmount) : state.cartAmount;
+}
+
+/** 优惠文案，如「大神卡 季卡已省 ¥9.00」 */
+function cartBenefitText() {
+  const q = state.quote;
+  if (!q || !Number(q.discountAmount)) return '';
+  return q.benefitText || ('已省 ¥' + money(q.discountAmount));
 }
 async function loadOrders() {
   if (!state.userId) { state.orders = []; return; }
@@ -1115,8 +1141,8 @@ function cartBar() {
     <div class="cartbar">
       <div class="carticon ${on ? 'on' : ''}">${ICON.cart}${on ? `<span class="badge">${state.cartCount}</span>` : ''}</div>
       <div class="cartinfo" data-act="go-cart">
-        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
-        <div class="sub">${on ? '已选 ' + state.cartCount + ' 件' : '购物车是空的'}</div>
+        <div class="amt"><small>合计 ¥</small>${money(cartPayAmount())}</div>
+        <div class="sub">${cartBenefitText() || (on ? '已选 ' + state.cartCount + ' 件' : '购物车是空的')}</div>
       </div>
       <button class="btn" data-act="go-cart" ${on ? '' : 'disabled'}>选好了</button>
     </div>`;
@@ -1176,8 +1202,8 @@ function viewCart() {
     </div>
     <div class="cartbar">
       <div class="cartinfo" style="cursor:default">
-        <div class="amt"><small>合计 ¥</small>${money(state.cartAmount)}</div>
-        <div class="sub">共 ${state.cartCount} 件 · 到店自取</div>
+        <div class="amt"><small>合计 ¥</small>${money(cartPayAmount())}</div>
+        <div class="sub">${cartBenefitText() || `共 ${state.cartCount} 件 · 到店自取`}</div>
       </div>
       <button class="btn" data-act="checkout">去结算</button>
     </div>`;
@@ -1266,7 +1292,15 @@ function viewOrderDetail() {
         <div class="line"><b style="font-size:14px">餐品明细</b><span class="hint" style="margin-left:auto">共 ${o.itemCount} 件</span></div>
         ${items}
         <div class="divider"></div>
-        <div class="line"><span class="muted">合计</span>
+        <div class="line"><span class="muted">商品金额</span>
+          <span style="margin-left:auto">¥${money(o.totalAmount)}</span></div>
+        ${Number(o.deliveryFee) > 0 ? `<div class="line" style="margin-top:6px"><span class="muted">外送费</span>
+          <span style="margin-left:auto">¥${money(o.deliveryFee)}</span></div>` : ''}
+        ${Number(o.discountAmount) > 0 ? `<div class="line" style="margin-top:6px"><span class="muted">大神卡优惠</span>
+          <span style="margin-left:auto;color:var(--primary);font-weight:700">-¥${money(o.discountAmount)}</span></div>
+          <div class="hint" style="margin-top:4px">${esc(o.benefitDetail || '')}</div>` : ''}
+        <div class="divider"></div>
+        <div class="line"><span class="muted">实付</span>
           <span class="price" style="margin-left:auto">¥${money(o.payAmount)}</span></div>
       </div>
       <div class="card">

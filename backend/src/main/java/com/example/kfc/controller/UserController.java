@@ -38,7 +38,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     public Result<UserVO> getById(@PathVariable Long id) {
-        return Result.success(userService.getById(id));
+        return Result.success(userService.getProfile(id));
     }
 
     /** 注册：成功后直接返回 token，前端不用再登录一次 */

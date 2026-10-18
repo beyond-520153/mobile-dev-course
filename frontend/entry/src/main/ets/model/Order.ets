@@ -12,7 +12,14 @@ export interface Order {
   pickupType: string;
   pickupTypeText: string;
   totalAmount: number;
+  /** 外送费（到店自取为 0） */
+  deliveryFee: number;
+  /** 会员卡权益优惠合计 */
+  discountAmount: number;
+  /** 实付 = totalAmount + deliveryFee - discountAmount */
   payAmount: number;
+  /** 优惠文案，如「每日 1 杯咖啡 10 元 -9.00（拿铁 ×1）」 */
+  benefitDetail?: string;
   /** PENDING_PAYMENT / PAID / READY / COMPLETED / CANCELLED */
   status: string;
   statusText: string;

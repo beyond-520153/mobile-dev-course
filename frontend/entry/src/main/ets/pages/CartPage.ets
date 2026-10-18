@@ -1,6 +1,7 @@
 import { Theme } from '../common/Constants';
 import { CartItem } from '../model/CartItem';
 import { Order } from '../model/Order';
+import { OrderQuote } from '../model/OrderQuote';
 import { OrderDetailParams } from '../model/RouteParams';
 import { CartApi } from '../api/CartApi';
 import { OrderApi } from '../api/OrderApi';
@@ -28,6 +29,11 @@ struct CartPage {
   @StorageLink('cartCount') cartCount: number = 0;
   @StorageLink('cartAmount') cartAmount: number = 0;
 
+  /** 结算试算结果：应付金额与已省金额都由服务端算，前端只负责显示 */
+  @State payAmount: number = 0;
+  @State discountAmount: number = 0;
+  @State benefitText: string = '';
+
   aboutToAppear(): void {
     this.load();
   }
@@ -43,11 +49,36 @@ struct CartPage {
     try {
       this.items = await CartApi.list(uid);
       await CartViewModel.refresh(uid);
+      await this.loadQuote(uid);
       this.errorMsg = '';
     } catch (err) {
       this.errorMsg = `购物车加载失败：${err}`;
     }
     this.loading = false;
+  }
+
+  /**
+   * 结算试算：持大神卡时后端会把优惠算好返回
+   *
+   * 失败就退回按购物车合计显示，不让一个只读接口挡住下单。
+   */
+  private async loadQuote(uid: number): Promise<void> {
+    if (this.items.length === 0) {
+      this.payAmount = 0;
+      this.discountAmount = 0;
+      this.benefitText = '';
+      return;
+    }
+    try {
+      const quote: OrderQuote = await OrderApi.quote(uid, 'PICKUP');
+      this.payAmount = quote.payAmount;
+      this.discountAmount = quote.discountAmount;
+      this.benefitText = quote.benefitText ?? '';
+    } catch (err) {
+      this.payAmount = this.cartAmount;
+      this.discountAmount = 0;
+      this.benefitText = '';
+    }
   }
 
   /** delta 为 +1 / -1；减到 0 时后端会把条目删掉 */
@@ -299,24 +330,38 @@ struct CartPage {
       }
 
       Row() {
-        Row() {
-          Text('合计 ')
-            .fontSize(11)
-            .fontColor(Theme.TEXT_SUB)
-          Text('¥')
-            .fontSize(11)
-            .fontColor(Theme.PRIMARY)
-            .fontWeight(FontWeight.Bold)
-          Text(`${this.cartAmount.toFixed(2)}`)
-            .fontSize(18)
-            .fontColor(Theme.PRIMARY)
-            .fontWeight(FontWeight.Bold)
-          Text(`  （${this.cartCount} 件）`)
-            .fontSize(11)
-            .fontColor(Theme.TEXT_HINT)
+        Column() {
+          Row() {
+            Text('合计 ')
+              .fontSize(11)
+              .fontColor(Theme.TEXT_SUB)
+            Text('¥')
+              .fontSize(11)
+              .fontColor(Theme.PRIMARY)
+              .fontWeight(FontWeight.Bold)
+            Text(`${(this.payAmount > 0 ? this.payAmount : this.cartAmount).toFixed(2)}`)
+              .fontSize(18)
+              .fontColor(Theme.PRIMARY)
+              .fontWeight(FontWeight.Bold)
+            Text(`  （${this.cartCount} 件）`)
+              .fontSize(11)
+              .fontColor(Theme.TEXT_HINT)
+          }
+          .alignItems(VerticalAlign.Bottom)
+
+          if (this.discountAmount > 0) {
+            Text(this.benefitText.length > 0
+              ? this.benefitText
+              : `大神卡已优惠 ¥${this.discountAmount.toFixed(2)}`)
+              .fontSize(10)
+              .fontColor(Theme.PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 2 })
+          }
         }
         .layoutWeight(1)
-        .alignItems(VerticalAlign.Bottom)
+        .alignItems(HorizontalAlign.Start)
 
         Text(this.submitting ? '提交中…' : '去结算')
           .fontSize(15)
@@ -334,7 +379,7 @@ struct CartPage {
           })
       }
       .width('100%')
-      .height(60)
+      .height(68)
       .padding({ left: Theme.GAP, right: Theme.GAP })
       .backgroundColor(Theme.CARD)
       .border({ width: { top: 1 }, color: Theme.DIVIDER })

@@ -186,6 +186,7 @@ public class CartItemServiceImpl implements CartItemService {
         vo.setId(entity.getId());
         vo.setUserId(entity.getUserId());
         vo.setProductId(entity.getProductId());
+        vo.setCategoryId(product.getCategoryId());
         vo.setProductName(product.getName());
         vo.setProductImage(product.getImage());
         vo.setPrice(product.getPrice());

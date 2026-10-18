@@ -5,6 +5,8 @@ import com.example.kfc.domain.dto.MemberOpenDTO;
 import com.example.kfc.domain.vo.MemberCardVO;
 import com.example.kfc.domain.vo.MemberPlanVO;
 import com.example.kfc.domain.vo.MemberSummaryVO;
+import com.example.kfc.domain.vo.UserBenefitVO;
+import com.example.kfc.service.BenefitService;
 import com.example.kfc.service.MemberService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +28,11 @@ import java.util.List;
 public class MemberController {
 
     private final MemberService memberService;
+    private final BenefitService benefitService;
 
-    public MemberController(MemberService memberService) {
+    public MemberController(MemberService memberService, BenefitService benefitService) {
         this.memberService = memberService;
+        this.benefitService = benefitService;
     }
 
     /** 会员概要：昵称 / 会员号 / V金 / 卡券 / 余额 / 成就 + 生效卡 */
@@ -57,5 +61,15 @@ public class MemberController {
     @PostMapping("/cards")
     public Result<MemberSummaryVO> open(@Valid @RequestBody MemberOpenDTO dto) {
         return Result.success(memberService.openCard(dto));
+    }
+
+    /**
+     * 当前用户可享的权益（大神卡 / 咖啡卡）
+     *
+     * <p>带今日已用次数与是否在生效时段；未持卡返回空数组。
+     */
+    @GetMapping("/benefits")
+    public Result<List<UserBenefitVO>> benefits(@RequestParam Long userId) {
+        return Result.success(benefitService.listBenefits(userId));
     }
 }

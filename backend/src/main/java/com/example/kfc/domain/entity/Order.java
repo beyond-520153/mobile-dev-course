@@ -49,9 +49,25 @@ public class Order {
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
-    /** 实付金额 */
+    /** 外送费（到店自取为 0） */
+    @Column(name = "delivery_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal deliveryFee;
+
+    /** 会员卡权益优惠合计（商品优惠 + 外送费减免） */
+    @Column(name = "discount_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
+    /** 实付金额 = totalAmount + deliveryFee - discountAmount */
     @Column(name = "pay_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal payAmount;
+
+    /** 本单用掉的权益规则编码，逗号分隔（取消订单时按它把次数还回去） */
+    @Column(name = "benefit_codes", length = 200)
+    private String benefitCodes;
+
+    /** 优惠文案，直接给前端展示 */
+    @Column(name = "benefit_detail", length = 500)
+    private String benefitDetail;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -88,6 +104,15 @@ public class Order {
         }
         if (pickupType == null) {
             pickupType = "PICKUP";
+        }
+        if (deliveryFee == null) {
+            deliveryFee = BigDecimal.ZERO;
+        }
+        if (discountAmount == null) {
+            discountAmount = BigDecimal.ZERO;
+        }
+        if (payAmount == null) {
+            payAmount = totalAmount == null ? BigDecimal.ZERO : totalAmount;
         }
     }
 

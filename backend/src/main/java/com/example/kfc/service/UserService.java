@@ -16,6 +16,14 @@ public interface UserService {
 
     UserVO getById(Long id);
 
+    /**
+     * 用户详情（带大神卡属性与可享权益）
+     *
+     * <p>与 getById 分开：getById 被订单等服务在高频路径上调用，
+     * 不该每次都去查卡和权益；只有前端要展示的详情才走这里。
+     */
+    UserVO getProfile(Long id);
+
     /** 注册：用户名唯一性校验 + 密码加盐摘要存储 */
     UserVO register(UserRegisterDTO dto);
 

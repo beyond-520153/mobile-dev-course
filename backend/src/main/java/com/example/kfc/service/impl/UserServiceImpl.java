@@ -9,6 +9,7 @@ import com.example.kfc.domain.entity.User;
 import com.example.kfc.domain.enums.UserRole;
 import com.example.kfc.domain.vo.UserVO;
 import com.example.kfc.repository.UserRepository;
+import com.example.kfc.service.BenefitService;
 import com.example.kfc.service.UserService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -42,10 +43,14 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final StringRedisTemplate redis;
+    private final BenefitService benefitService;
 
-    public UserServiceImpl(UserRepository userRepository, StringRedisTemplate redis) {
+    public UserServiceImpl(UserRepository userRepository,
+                           StringRedisTemplate redis,
+                           BenefitService benefitService) {
         this.userRepository = userRepository;
         this.redis = redis;
+        this.benefitService = benefitService;
     }
 
     @Override
@@ -56,6 +61,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVO getById(Long id) {
         return UserVO.from(getEntity(id));
+    }
+
+    @Override
+    public UserVO getProfile(Long id) {
+        return enrich(UserVO.from(getEntity(id)));
     }
 
     @Override
@@ -74,7 +84,7 @@ public class UserServiceImpl implements UserService {
         entity.setStatus(1);
 
         User saved = userRepository.save(entity);
-        UserVO vo = UserVO.from(saved);
+        UserVO vo = enrich(UserVO.from(saved));
         vo.setToken(issueToken(saved.getId()));
         return vo;
     }
@@ -89,7 +99,7 @@ public class UserServiceImpl implements UserService {
         if (!Integer.valueOf(1).equals(entity.getStatus())) {
             throw new BusinessException("账号已被禁用，请联系门店");
         }
-        UserVO vo = UserVO.from(entity);
+        UserVO vo = enrich(UserVO.from(entity));
         vo.setToken(issueToken(entity.getId()));
         return vo;
     }
@@ -107,7 +117,22 @@ public class UserServiceImpl implements UserService {
         if (dto.getAvatar() != null) {
             entity.setAvatar(dto.getAvatar());
         }
-        return UserVO.from(userRepository.save(entity));
+        return enrich(UserVO.from(userRepository.save(entity)));
+    }
+
+    /**
+     * 给用户出参补上大神卡属性与可享权益
+     *
+     * <p>「是不是大神卡拥有者」由 t_member_card 当刻的到期时间决定，
+     * 不额外在 t_user 上存一个会过期的布尔值 —— 那种冗余字段迟早会不一致。
+     */
+    private UserVO enrich(UserVO vo) {
+        if (vo == null || vo.getId() == null) {
+            return vo;
+        }
+        vo.applyGodCard(benefitService.activeGodCard(vo.getId()),
+                benefitService.listBenefits(vo.getId()));
+        return vo;
     }
 
     @Override

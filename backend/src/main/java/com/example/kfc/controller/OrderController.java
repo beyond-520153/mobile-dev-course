@@ -3,6 +3,7 @@ package com.example.kfc.controller;
 import com.example.kfc.common.result.Result;
 import com.example.kfc.domain.dto.OrderCreateDTO;
 import com.example.kfc.domain.dto.OrderUpdateDTO;
+import com.example.kfc.domain.vo.OrderQuoteVO;
 import com.example.kfc.domain.vo.OrderVO;
 import com.example.kfc.service.OrderService;
 import jakarta.validation.Valid;
@@ -40,6 +41,18 @@ public class OrderController {
     @GetMapping("/{id}")
     public Result<OrderVO> getById(@PathVariable Long id) {
         return Result.success(orderService.getById(id));
+    }
+
+    /**
+     * 结算试算：以当前购物车为准，套用会员卡权益
+     *
+     * <p>结算页在用户改取餐方式、加减餐品后调它刷新金额，只读不写库。
+     */
+    @GetMapping("/quote")
+    public Result<OrderQuoteVO> quote(@RequestParam Long userId,
+                                      @RequestParam(required = false, defaultValue = "PICKUP")
+                                      String pickupType) {
+        return Result.success(orderService.quote(userId, pickupType));
     }
 
     /** 下单：以该用户当前购物车为准，服务端算价、扣库存、清空购物车 */

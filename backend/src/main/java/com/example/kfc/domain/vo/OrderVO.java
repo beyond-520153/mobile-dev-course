@@ -27,8 +27,17 @@ public class OrderVO {
     /** 取餐方式中文，前端直接展示 */
     private String pickupTypeText;
 
+    /** 商品总额 */
     private BigDecimal totalAmount;
+    /** 外送费（到店自取为 0） */
+    private BigDecimal deliveryFee;
+    /** 会员卡权益优惠合计 */
+    private BigDecimal discountAmount;
+    /** 实付金额 = totalAmount + deliveryFee - discountAmount */
     private BigDecimal payAmount;
+
+    /** 优惠文案，如「每日 1 杯咖啡 10 元 -9.00（拿铁 ×1）；外送费已免 -9.00」 */
+    private String benefitDetail;
 
     /** 状态码，如 PENDING_PAYMENT */
     private String status;
@@ -68,7 +77,10 @@ public class OrderVO {
         vo.setPickupType(o.getPickupType());
         vo.setPickupTypeText("DELIVERY".equals(o.getPickupType()) ? "外送" : "到店自取");
         vo.setTotalAmount(o.getTotalAmount());
+        vo.setDeliveryFee(o.getDeliveryFee());
+        vo.setDiscountAmount(o.getDiscountAmount());
         vo.setPayAmount(o.getPayAmount());
+        vo.setBenefitDetail(o.getBenefitDetail());
         vo.setRemark(o.getRemark());
         vo.setPickupCode(o.getPickupCode());
         vo.setPayTime(o.getPayTime());
