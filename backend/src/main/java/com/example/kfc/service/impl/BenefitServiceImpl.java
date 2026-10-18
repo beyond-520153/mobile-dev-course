@@ -1,5 +1,6 @@
 package com.example.kfc.service.impl;
 
+import com.example.kfc.common.auth.UserContext;
 import com.example.kfc.domain.entity.BenefitRule;
 import com.example.kfc.domain.entity.BenefitUsage;
 import com.example.kfc.domain.entity.Category;
@@ -8,6 +9,7 @@ import com.example.kfc.domain.vo.CartItemVO;
 import com.example.kfc.domain.vo.DiscountLineVO;
 import com.example.kfc.domain.vo.MemberCardVO;
 import com.example.kfc.domain.vo.OrderQuoteVO;
+import com.example.kfc.domain.vo.ProductVO;
 import com.example.kfc.domain.vo.UserBenefitVO;
 import com.example.kfc.repository.BenefitRuleRepository;
 import com.example.kfc.repository.BenefitUsageRepository;
@@ -54,6 +56,7 @@ public class BenefitServiceImpl implements BenefitService {
     private static final String PICKUP = "PICKUP";
     private static final String DELIVERY = "DELIVERY";
     private static final String CARD_GOD = "GOD";
+    private static final String CARD_COFFEE = "COFFEE";
 
     private static final String TYPE_PERCENT_OFF = "PERCENT_OFF";
     private static final String TYPE_AMOUNT_OFF = "AMOUNT_OFF";
@@ -345,6 +348,151 @@ public class BenefitServiceImpl implements BenefitService {
         return activeGodCard(userId) != null;
     }
 
+    /**
+     * 给餐品列表叠加会员价
+     *
+     * <p>只做「当前用户视角的展示」：同一个商品，普通用户看到 19 元，
+     * 大神卡用户额外看到「大神卡 ¥10.00」。
+     *
+     * <p>三条自我约束：
+     * <ol>
+     *   <li>不碰缓存 —— 这个方法在 Controller 出参前调用，餐品缓存里永远只有基础价；</li>
+     *   <li>只处理能按「单件」准确表达的规则：特价（FIXED_PRICE）与折扣（PERCENT_OFF），
+     *       以及无门槛的立减（AMOUNT_OFF）；</li>
+     *   <li>有订单级门槛的立减（如满 30 减 5）不参与 —— 单件 35 元标成 ¥30 会误导，
+     *       因为买两件也只减 5 元。这类优惠只在结算页出现。</li>
+     * </ol>
+     */
+    @Override
+    public void fillMemberPrice(List<ProductVO> products) {
+        if (products == null || products.isEmpty()) {
+            return;
+        }
+        Long userId = UserContext.userId();
+        if (userId == null) {
+            return;
+        }
+        List<MemberCard> cards = activeCards(userId);
+        if (cards.isEmpty()) {
+            return;
+        }
+        Map<String, String> cardNames = new HashMap<>();
+        for (MemberCard card : cards) {
+            cardNames.putIfAbsent(card.getCardType(), displayCardName(card));
+        }
+        Set<String> cardTypes = cardNames.keySet();
+        List<BenefitRule> rules = ruleRepository
+                .findByCardTypeInAndStatusOrderBySortOrderAsc(cardTypes, 1);
+        if (rules.isEmpty()) {
+            return;
+        }
+        LocalTime now = LocalTime.now();
+        Map<String, Integer> usedToday = todayUsage(userId, LocalDate.now());
+        for (ProductVO product : products) {
+            applyMemberPrice(product, rules, cardNames, now, usedToday);
+        }
+    }
+
+    /** 单个商品的会员价：遍历规则取最低价 */
+    private void applyMemberPrice(ProductVO product, List<BenefitRule> rules,
+                                  Map<String, String> cardNames, LocalTime now,
+                                  Map<String, Integer> usedToday) {
+        if (product == null || product.getPrice() == null
+                || product.getPrice().signum() <= 0 || product.getCategoryId() == null) {
+            return;
+        }
+        BigDecimal price = product.getPrice();
+        BigDecimal best = null;
+        BenefitRule bestRule = null;
+
+        for (BenefitRule rule : rules) {
+            if (!inScope(rule, product.getCategoryId())) {
+                continue;
+            }
+            /*
+             * 时段与当日次数必须一起过滤：列表上标了「大神卡 ¥10」，结算时却因为
+             * 不在时段 / 今日次数用完而不打折，用户一定认为在骗人。
+             * 这里展示的语义是「此刻下单真能拿到这个价」。
+             */
+            if (!inTimeWindow(rule, now)) {
+                continue;
+            }
+            int limit = rule.getDailyLimit() == null ? 1 : rule.getDailyLimit();
+            if (usedToday.getOrDefault(rule.getCode(), 0) >= limit) {
+                continue;
+            }
+            BigDecimal threshold = rule.getThresholdAmount() == null
+                    ? BigDecimal.ZERO : rule.getThresholdAmount();
+            BigDecimal candidate = null;
+            switch (rule.getBenefitType() == null ? "" : rule.getBenefitType()) {
+                case TYPE_FIXED_PRICE -> {
+                    BigDecimal fixed = rule.getDiscountValue();
+                    // 原价本来就低于特价的商品不参与，否则会出现「会员价比原价还贵」
+                    if (fixed != null && price.compareTo(fixed) > 0) {
+                        candidate = fixed;
+                    }
+                }
+                case TYPE_AMOUNT_OFF -> {
+                    if (threshold.signum() > 0) {
+                        // 订单级门槛，单件价不足以表达，跳过
+                        continue;
+                    }
+                    if (rule.getDiscountValue() != null) {
+                        candidate = price.subtract(rule.getDiscountValue().min(price));
+                    }
+                }
+                case TYPE_PERCENT_OFF -> {
+                    if (rule.getDiscountValue() != null) {
+                        candidate = price.multiply(rule.getDiscountValue());
+                        /*
+                         * 与 quote() 同口径：max_discount 是「最多减多少钱」的封顶。
+                         * 少了这一步，高价商品会在列表上标出比实际结算更低的价。
+                         */
+                        if (rule.getMaxDiscount() != null
+                                && price.subtract(candidate).compareTo(rule.getMaxDiscount()) > 0) {
+                            candidate = price.subtract(rule.getMaxDiscount());
+                        }
+                    }
+                }
+                default -> {
+                    // FREE_DELIVERY 抵的是配送费，跟单品价格无关
+                }
+            }
+            if (candidate == null || candidate.signum() <= 0) {
+                continue;
+            }
+            candidate = scale(candidate);
+            if (best == null || candidate.compareTo(best) < 0) {
+                best = candidate;
+                bestRule = rule;
+            }
+        }
+
+        if (best == null || bestRule == null) {
+            return;
+        }
+        product.setMemberPrice(best);
+        product.setMemberCardName(cardNames.getOrDefault(bestRule.getCardType(), "大神卡"));
+        product.setMemberBenefit(bestRule.getName());
+        product.setMemberPriceText(product.getMemberCardName() + " ¥" + best.toPlainString());
+    }
+
+    /**
+     * 卡在商品标签上的称呼
+     *
+     * <p>数据库里 card_name 存的是档位名（如「季卡」「年卡」），
+     * 但商品卡上要展示的是「哪个卡带来的优惠」，所以按类型归一成「大神卡」「咖啡卡」。
+     */
+    private String displayCardName(MemberCard card) {
+        if (CARD_GOD.equals(card.getCardType())) {
+            return "大神卡";
+        }
+        if (CARD_COFFEE.equals(card.getCardType())) {
+            return "咖啡卡";
+        }
+        return card.getCardName() == null ? "会员" : card.getCardName();
+    }
+
     /* ============================== 内部实现 ============================== */
 
     /** 收尾：算应付金额、汇总文案 */
@@ -414,6 +562,19 @@ public class BenefitServiceImpl implements BenefitService {
         return Arrays.stream(rule.getScopeIds().split(","))
                 .map(String::trim)
                 .anyMatch(id -> id.equals(String.valueOf(unit.categoryId)));
+    }
+
+    /** 同上，按分类 ID 判定（餐品列表叠加会员价时用，手上没有购物车条目） */
+    private boolean inScope(BenefitRule rule, Long categoryId) {
+        if ("ALL".equalsIgnoreCase(rule.getScopeType())) {
+            return true;
+        }
+        if (rule.getScopeIds() == null || rule.getScopeIds().isBlank() || categoryId == null) {
+            return false;
+        }
+        return Arrays.stream(rule.getScopeIds().split(","))
+                .map(String::trim)
+                .anyMatch(id -> id.equals(String.valueOf(categoryId)));
     }
 
     private boolean pickupAllowed(BenefitRule rule, String pickup) {

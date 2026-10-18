@@ -1,5 +1,7 @@
 package com.example.kfc.service.impl;
 
+import com.example.kfc.common.auth.JwtUtil;
+import com.example.kfc.common.auth.LoginUser;
 import com.example.kfc.common.constant.RedisKeyConstants;
 import com.example.kfc.common.exception.BusinessException;
 import com.example.kfc.domain.dto.LoginDTO;
@@ -11,6 +13,7 @@ import com.example.kfc.domain.vo.UserVO;
 import com.example.kfc.repository.UserRepository;
 import com.example.kfc.service.BenefitService;
 import com.example.kfc.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,13 +47,19 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final StringRedisTemplate redis;
     private final BenefitService benefitService;
+    private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper;
 
     public UserServiceImpl(UserRepository userRepository,
                            StringRedisTemplate redis,
-                           BenefitService benefitService) {
+                           BenefitService benefitService,
+                           JwtUtil jwtUtil,
+                           ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.redis = redis;
         this.benefitService = benefitService;
+        this.jwtUtil = jwtUtil;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -85,7 +94,7 @@ public class UserServiceImpl implements UserService {
 
         User saved = userRepository.save(entity);
         UserVO vo = enrich(UserVO.from(saved));
-        vo.setToken(issueToken(saved.getId()));
+        vo.setToken(issueToken(saved));
         return vo;
     }
 
@@ -100,7 +109,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("账号已被禁用，请联系门店");
         }
         UserVO vo = enrich(UserVO.from(entity));
-        vo.setToken(issueToken(entity.getId()));
+        vo.setToken(issueToken(entity));
         return vo;
     }
 
@@ -149,27 +158,73 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean validateToken(Long userId, String token) {
-        if (userId == null || token == null) {
+        if (userId == null || token == null || token.isBlank()) {
             return false;
         }
         try {
-            String saved = redis.opsForValue().get(RedisKeyConstants.TOKEN_PREFIX + userId);
-            return token.equals(saved);
+            String json = redis.opsForValue().get(RedisKeyConstants.TOKEN_PREFIX + token);
+            if (json == null) {
+                return false;
+            }
+            LoginUser session = objectMapper.readValue(json, LoginUser.class);
+            return session != null && userId.equals(session.getUserId());
         } catch (Exception e) {
             log.warn("Redis 读取 token 失败：{}", e.getMessage());
             return false;
         }
     }
 
-    /** 签发 token 并写入 Redis（2 小时过期） */
-    private String issueToken(Long userId) {
-        String token = UUID.randomUUID().toString().replace("-", "");
-        try {
-            redis.opsForValue().set(RedisKeyConstants.TOKEN_PREFIX + userId, token,
-                    Duration.ofSeconds(RedisKeyConstants.TOKEN_TTL_SECONDS));
-        } catch (Exception e) {
-            log.warn("Redis 写入 token 失败：{}", e.getMessage());
+    @Override
+    public void logout(String token) {
+        if (token == null || token.isBlank()) {
+            return;
         }
+        try {
+            String json = redis.opsForValue().get(RedisKeyConstants.TOKEN_PREFIX + token);
+            if (json != null) {
+                LoginUser session = objectMapper.readValue(json, LoginUser.class);
+                if (session != null && session.getUserId() != null) {
+                    redis.delete(RedisKeyConstants.USER_TOKEN_PREFIX + session.getUserId());
+                }
+            }
+            redis.delete(RedisKeyConstants.TOKEN_PREFIX + token);
+            log.info("登出成功，token 已从 Redis 移除");
+        } catch (Exception e) {
+            // 登出失败不报错给前端：本地 token 已经丢了，再报错只会让用户卡住
+            log.warn("登出清理 Redis 会话失败：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 签发 JWT 并建立 Redis 会话
+     *
+     * <p>两者必须同时成功：JWT 是「你是谁」的自证，Redis 是「这个身份还有效」的服务端凭据。
+     * Redis 写失败时宁可让登录失败，也不能返回一个之后必然 401 的 token
+     * —— 那种「登录成功了但点什么都说未登录」的体验比直接失败更难查。
+     */
+    private String issueToken(User user) {
+        boolean godCard = false;
+        try {
+            godCard = benefitService.isGodCardOwner(user.getId());
+        } catch (Exception e) {
+            log.warn("签发 token 时查询大神卡状态失败（按非会员处理）：{}", e.getMessage());
+        }
+
+        LoginUser loginUser = LoginUser.of(user, godCard);
+        String token = jwtUtil.generate(loginUser);
+        long ttl = jwtUtil.getTtlSeconds() > 0
+                ? jwtUtil.getTtlSeconds() : RedisKeyConstants.TOKEN_TTL_SECONDS;
+        try {
+            String json = objectMapper.writeValueAsString(loginUser);
+            redis.opsForValue().set(RedisKeyConstants.TOKEN_PREFIX + token, json,
+                    Duration.ofSeconds(ttl));
+            redis.opsForValue().set(RedisKeyConstants.USER_TOKEN_PREFIX + user.getId(), token,
+                    Duration.ofSeconds(ttl));
+        } catch (Exception e) {
+            log.error("Redis 写入登录会话失败", e);
+            throw new BusinessException("登录服务暂时不可用，请稍后重试");
+        }
+        log.info("登录成功：{}，会话有效期 {} 秒", loginUser.describe(), ttl);
         return token;
     }
 

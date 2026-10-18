@@ -86,27 +86,28 @@ mobile-dev-course/
 | `kfc:category:list` | String(JSON) | 5 分钟 | 点餐首页「分类 + 餐品」整体结构，一次请求返回 |
 | `kfc:product:{id}` | String(JSON) | 10 分钟 | 餐品详情；任何写操作后立即失效 |
 | `kfc:cart:{userId}` | Hash | 7 天 | 购物车缓存副本，写库后整份刷新 |
-| `kfc:token:{userId}` | String | 2 小时 | 登录 token |
+| `kfc:token:{token}` | String(JSON) | 1 小时 | 登录会话，值为 `LoginUser`（userId/username/nickname/role/godCard/loginAt） |
+| `kfc:token:user:{userId}` | String | 1 小时 | 该用户当前 token，按用户维度踢下线 |
 
 ---
 
 ## 四、真实菜单数据（官方来源）
 
-项目里的分类和餐品**不是编的**，是 2026-10-16 从肯德基官方预点餐 H5（`order.kfc.com.cn`）
-抓下来的**真实在售菜单**：
+项目里的分类和餐品**不是编的**，是 2026-10-18 从肯德基官方预点餐 H5（`order.kfc.com.cn`）
+按浙江农林大学（东湖校区）门店抓下来的**真实在售菜单**：
 
 | 项 | 值 |
 |---|---|
 | 数据来源 | 官方接口 `POST /preorder-portal/api/v2/menu/list` |
-| 抓取门店 | 杭州东站二楼候车室餐厅（`HZ3011`） |
-| 分类 | 13 个（人气热卖 / 旅途狠划算 / 桶多人餐 / 汁汁牛堡 / 吮指原味鸡 / …） |
-| 餐品 | 80 条（69 个唯一单品·套餐，跨分类聚合的按官方菜单分别建行） |
-| 图片 | 69 张官方原图，存 `backend/src/main/resources/static/images/products/`（约 7.6 MB） |
+| 抓取门店 | 农林大学餐厅（`HZ2226`）—— 临安区武肃街666号 浙江农林大学东湖食堂一楼外侧档口（东湖校区） |
+| 分类 | 17 个（周末疯狂拼 / 人气热卖 / 夜宵炸串 / 夜宵鸡架 / 联名套餐 / 桶多人餐 / 汁汁牛堡 / 全鸡 / 吮指原味鸡 / 炸鸡小食 / 汉堡卷 / 饮品 / 金奖豆K咖啡 / 蛋挞甜品 / 冰淇淋 / 炸鸡伴侣 / 自选） |
+| 餐品 | 96 条（81 个唯一单品·套餐，跨分类聚合的按官方菜单分别建行） |
+| 图片 | 81 张官方原图，存 `backend/src/main/resources/static/images/products/`（约 16 MB） |
 
-导入脚本：`backend/src/main/resources/db/migration/V2__kfc_real_menu.sql`
+导入脚本：`backend/src/main/resources/db/migration/V6__zafu_campus_menu.sql`
 
 ```bash
-psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
+psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V6__zafu_campus_menu.sql
 ```
 
 几个字段说明：
@@ -116,9 +117,12 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
   换 IP、换端口都不用动数据。
 - `origin_price` 是官方划线原价，无折扣时等于 `price`；只有真有折扣时才在界面上画删除线。
 - 官方菜单里分类名与餐品名带内部标记 `BBN`（如「人气BBN热卖」「S旅途随心桶2堡7件新」），
-  导入时统一清掉，得到界面上看到的「人气热卖」「旅途随心桶(畅选7件)」。
-- 同一餐品会出现在多个分类下（官方的「人气热卖」就是聚合位），所以 69 个唯一餐品
-  在表里有 80 行，按 `(category_id, name)` 维度唯一。
+  导入时统一清掉，得到界面上看到的「人气热卖」「周末疯狂拼畅选8拼餐」。
+- 同一餐品会出现在多个分类下（官方的「人气热卖」就是聚合位），所以 81 个唯一餐品
+  在表里有 96 行，按 `(category_id, name)` 维度唯一。
+- 换门店时旧菜单不硬删，只把 `status` 置 0 退役：`t_order_item` 引用着 `t_product`，
+  硬删会毁掉历史订单快照；查询侧（分类、搜索）都只取 `status = 1`。
+- 门店菜单里「多人团餐」是 0 元的团餐活动入口、不是菜品，未导入。
 
 > 菜品图片版权归百胜中国所有，仅用于课程学习，不得用于任何商业用途。
 
@@ -132,7 +136,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
 ```
 应看到 PostgreSQL `accepting connections` 和 Redis `PONG`（`status.bat` 可复查）。
 
-### 2. 建表 + 灌数据（按 V1 → V2 → V3 → V4 → V5 顺序，各跑一次）
+### 2. 建表 + 灌数据（按 V1 → V2 → V3 → V4 → V5 → V6 顺序，各跑一次）
 
 ```bash
 PSQL="D:\devtools\postgresql-17\bin\psql.exe"
@@ -141,6 +145,7 @@ $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V2__kfc_real
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V3__product_search.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V4__member.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V5__member_benefit.sql
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V6__zafu_campus_menu.sql
 ```
 
 （Windows 上直接写三行 `"D:\devtools\postgresql-17\bin\psql.exe" -U postgres -d kfc -f <脚本路径>` 即可。）
@@ -152,6 +157,7 @@ $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V5__member_b
 | `V3__product_search.sql` | 加 `pinyin_initials` 列并写入 80 行拼音首字母（供搜索用） | ✅ `ADD COLUMN IF NOT EXISTS` |
 | `V4__member.sql` | 建 3 张会员表（`t_member` / `t_member_plan` / `t_member_card`）+ 4 个档位种子 + 给已有用户补会员账户 | ✅ 用了 `IF NOT EXISTS` / `ON CONFLICT DO NOTHING` |
 | `V5__member_benefit.sql` | 建 `t_benefit_rule`（权益规则）/ `t_benefit_usage`（每日次数流水）+ 给 `t_order` 加 `delivery_fee` / `discount_amount` / `benefit_codes` / `benefit_detail` 四列 + 6 条规则种子 | ✅ 用了 `IF NOT EXISTS` / `ON CONFLICT DO UPDATE` |
+| `V6__zafu_campus_menu.sql` | **换成浙江农林大学店（`HZ2226`）菜单**：旧菜单置 `status=0` 退役、写入 17 分类 / 96 餐品并回填拼音首字母、同步大神卡套餐类权益的作用域 | ✅ 先退役再 `ON CONFLICT` 写入 |
 
 ⚠️ **四份都要跑**。后端的 `Product` 实体已经有 `originPrice` / `pinyinInitials` 两个字段，
 而 `application.yml` 里 `ddl-auto: none`（表结构完全由脚本管，Hibernate 不会自己加列）——
@@ -290,6 +296,23 @@ http://localhost:8090/preview.html
 
 **演示账号：`demo` / `123456`**（种子数据里密码按「盐$SHA-256(盐+明文)」存储，不存明文）。
 
+### 用 curl 调试时记得带 token
+
+除了商品 / 分类 / 登录注册，其余接口都要求 `Authorization: Bearer <token>`，
+否则直接 401：
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8090/api/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"123456"}' | python -c "import json,sys;print(json.load(sys.stdin)['data']['token'])")
+
+# 带 token 才拿得到订单
+curl -s "http://localhost:8090/api/orders?userId=1" -H "Authorization: Bearer $TOKEN"
+
+# 商品接口匿名也能看，但只有带了有效 token 且持卡才会多出 memberPrice
+curl -s http://localhost:8090/api/products/86
+```
+
 ---
 
 ## 七、接口清单（统一前缀 `/api`，返回结构统一为 `Result`）
@@ -302,11 +325,67 @@ http://localhost:8090/preview.html
 | 订单 | `GET /orders?userId`、`GET /orders/{id}`、`GET /orders/quote?userId&pickupType`（结算试算）、`POST /orders`、`POST /orders/{id}/pay`、`POST /orders/{id}/cancel`、`DELETE /orders/{id}` |
 | 订单明细 | `GET /order-items?orderId` |
 | 地址 | `GET /addresses?userId`、`POST/PUT/DELETE /addresses[/{id}]` |
-| 用户 | `POST /users/login`、`POST /users/register`、`GET /users/{id}`、`PUT /users/{id}` |
+| 用户 | `POST /users/login`、`POST /users/register`、`POST /users/logout`、`GET /users/{id}`、`PUT /users/{id}` |
 | 会员 | `GET /member/summary?userId`、`GET /member/plans?cardType`、`GET /member/cards?userId`、`POST /member/cards`（开通/续费）、`GET /member/benefits?userId`（可享权益+今日剩余次数） |
 
 `Result` 结构：`{ code, message, data }`，业务成功 `code=200`。
-HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 接口或资源不存在 / 500 业务规则不通过 / 5000 系统异常）。
+参数错 / 业务规则不通过 / 系统异常一律 HTTP 200 + 业务码（400 / 500 / 5000）。
+**唯一例外是未登录：真正的 HTTP 401**（body 仍是 `Result`，`code=401`），
+前端靠状态码直接触发「清 token → 重新登录」，不用去解析 message。
+
+### 登录鉴权（JWT + Redis 会话）
+
+**登录**：`POST /api/users/login`，密码用 `盐$SHA-256(盐 + 明文)` 与库里的 `t_user.password` 比对，
+库里从不存明文。成功后返回 `token` 字段（JWT）。
+
+**JWT**：HS 系列对称签名（密钥 ≥ 32 字节时 jjwt 自动选 HS384），
+`sub` 放 userId，另外带 `username / nickname / role / god`；
+`exp` 与 Redis 会话同为 **1 小时**，两者必须同寿，否则会出现「还验得过但已经登出」的半死状态。
+
+**Redis**：
+
+| key | value | TTL | 用途 |
+|---|---|---|---|
+| `kfc:token:{token}` | `LoginUser` 的 JSON（userId/username/nickname/role/godCard/loginAt） | 3600s | 拦截器直接 GET，判断会话是否还在 |
+| `kfc:token:user:{userId}` | 该用户当前 token | 3600s | 登出清理、按用户维度踢下线 |
+
+**拦截器**（`common/auth/AuthInterceptor`，挂在 `/api/**`）：
+
+1. `OPTIONS` 预检直接放行（浏览器预检按规范不带 Authorization）；
+2. 带 token：先验 JWT 签名与 exp，再查 Redis。失败时按接口性质分流——
+   **受保护接口 401**；**公开只读接口降级为匿名**（菜单照常浏览，只是不带会员价，
+   不会因为 token 过期把整个点餐页打成错误页）；
+3. 不带 token：公开接口按匿名放行，其余 401。
+
+公开接口（只对 GET 生效）：`/api/products`、`/api/products/**`、`/api/categories`、
+`/api/categories/**`、`/api/member/plans`、`/api/member/benefits`；
+另加 `POST /api/users/login`、`POST /api/users/register`。
+写操作（`POST/PUT/DELETE /api/products` 等）即使路径在白名单里也必须带 token。
+
+校验通过后把 `LoginUser` 放进 `UserContext`（ThreadLocal），Service 用 `UserContext.userId()`
+取当前用户，请求结束在 `afterCompletion` 清理 —— 不清会在线程复用时串号。
+
+**登出**：`POST /api/users/logout`，带同一个 token。JWT 本身无法撤销，
+所以登出的本质是删 Redis 会话，之后同一 token 验签仍然通过、但查不到会话 → 401。
+
+**商品会员价**（`GET /api/products*`、`GET /api/categories`）：
+
+`ProductVO` 多了四个字段，未登录 / 未持卡时全部为 `null`，前端据此决定是否渲染标签：
+
+| 字段 | 示例 |
+|---|---|
+| `memberPrice` | `10.00` |
+| `memberCardName` | `大神卡` / `咖啡卡` |
+| `memberBenefit` | `每日 1 杯指定咖啡 10 元` |
+| `memberPriceText` | `大神卡 ¥10.00` |
+
+叠加规则：按当前用户手上生效卡的规则逐条比价取最低，并且**必须同时满足**分类范围、
+可用时段（现在就在时段内）、当日次数还有剩余 —— 列表上标了「大神卡 ¥10」而结算时
+不打折，比不标更糟。有订单级门槛的立减（满 30 减 5）不参与单件价展示，因为单件价
+表达不了「整单只减一次」。
+
+> 会员价只在 Controller 出参前叠加，**不写进 Redis 餐品缓存** —— 缓存是所有人共用的，
+> 写进去会把 A 的会员价发给 B。
 
 ### 搜索接口 `GET /products/search?keyword=`
 
@@ -367,11 +446,11 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 | `GOD_BREAKFAST_40OFF` | 每日 1 次早餐两件套 6 折 | 07:00-10:30，「饮品 + 蛋挞甜品」两件 6 折，单笔最高减 20 |
 | `GOD_COFFEE_10` | 每日 1 杯指定咖啡 10 元 | 「金奖豆K咖啡」7 款任选 1 杯 10 元（原价低于 10 元不参与） |
 | `GOD_DESSERT_40OFF` | 每日 1 次下午茶两件套 6 折 | 14:00-17:00，「蛋挞甜品 + 冰淇淋」两件 6 折，最高减 20 |
-| `GOD_COMBO_MINUS5` | 晚餐人气套餐立减 | 「人气热卖 / 桶多人餐 / 多人团餐」满 30 元立减 5 元，每日 1 次 |
+| `GOD_COMBO_MINUS5` | 晚餐人气套餐立减 | 「人气热卖 / 桶多人餐 / 周末疯狂拼」满 30 元立减 5 元，每日 1 次 |
 | `GOD_FREE_DELIVERY` | 每天最多 2 次外送免配送费 | 仅外送、商品满 29 元免 9 元配送费 |
 | `COFFEE_DAILY_MINUS8` | 咖啡卡每日 1 杯 | 咖啡卡会员买「金奖豆K咖啡」立减 8 元 |
 
-> 官方「早餐」在我们这套菜单里没有独立分类（菜单源自正餐 13 分类），
+> 官方「早餐」在我们这套菜单里没有独立分类（菜单源自门店的 17 个正餐/夜宵分类），
 > 所以映射到「饮品 + 蛋挞甜品」并加了 07:00-10:30 的时段限制；
 > 「开卡赠 88 元券包」也简化成赠 2 张券（券还没有实体表）。
 
@@ -479,6 +558,18 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 | **咖啡卡独立生效**：只持咖啡卡（无大神卡）买拿铁 19 → 优惠 8、应付 11，`godCard=false` 但 `memberLevel=WOW会员` | ✅ |
 | **预览页显示**：点餐页餐车条 / 购物车「合计 ¥26 · 大神卡 季卡已省 ¥9.00」，订单详情「商品金额 35 / 大神卡优惠 −9 / 实付 26」 | ✅ |
 | **鸿蒙端**：`hvigor assembleHap` BUILD SUCCESSFUL（购物车新增优惠行） | ✅ |
+| **登录签发 JWT**：token 三段式（长度 241），`sub=1`，带 username/nickname/role/god | ✅ |
+| **Redis 会话**：`kfc:token:{token}` 存在、value 为 LoginUser JSON（111 字节）、TTL=3599s | ✅ |
+| **匿名访问商品列表**：17 分类 96 餐品全部正常，带 `memberPrice` 的商品数 = 0 | ✅ |
+| **带 token 访问商品列表**：6 款咖啡出现 `memberPriceText="大神卡 ¥10.00"`，其余分类为空（早餐/下午茶不在时段，套餐类立减是订单级门槛不上单品标签） | ✅ |
+| **商品详情**：匿名 `memberPrice=null`，带 token `memberPrice=10.0` | ✅ |
+| **无 token 访问受保护接口**：`GET /api/orders` → **HTTP 401** `{"code":401,"message":"请先登录"}` | ✅ |
+| **篡改 token 签名**：同一接口 → HTTP 401（验签直接失败，不查 Redis） | ✅ |
+| **登出即失效**：`POST /api/users/logout` 后同一 token 访问订单 → 401「登录状态已失效」 | ✅ |
+| **密码哈希校验**：错误密码 / 不存在用户名都返回「用户名或密码错误」（不区分，避免枚举账号） | ✅ |
+| **只持咖啡卡的用户**：注册新号 → 开咖啡卡，商品详情 `memberPrice=11.0`（拿铁 19−8）、`memberPriceText="咖啡卡 ¥11.00"` | ✅ |
+| **预览页**（CDP 实测）：登录后点餐页 6 个 `.mtag`「大神卡 ¥10.00」；清空 token 后 0 个；重新登录恢复 6 个 | ✅ |
+| **过期 token 访问公开接口**：降级为匿名（HTTP 200、无会员价），不把整个点餐页打成 401 | ✅ |
 
 ### 前后端字段级一致性审计（脚本核对，全部通过）
 
@@ -518,6 +609,10 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ## 十、注意事项 / 踩过的坑
 
+0. **加了拦截器之后，除了商品/分类/登录注册，所有 curl 都必须带 token**，
+   否则拿到的不是业务错误而是 401（`{"code":401,...}`），很容易误以为接口坏了。
+   生产部署记得把 `kfc.auth.secret` 换成环境变量 `KFC_AUTH_SECRET`，
+   长度至少 32 字节；改了 secret 等于让所有已发出的 token 失效（这是预期行为）。
 1. **工程路径必须纯英文。** hvigor 拒绝构建含中文路径的工程，
    实测报 `Invalid project path`。目录已从「移动互联开发课设」改名为 `mobile-dev-course`，
    请勿改回中文名。

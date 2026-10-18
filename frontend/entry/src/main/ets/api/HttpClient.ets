@@ -16,6 +16,11 @@ export class HttpClient {
     const request = http.createHttp();
     try {
       const header: Record<string, string> = { 'Content-Type': 'application/json' };
+      // 登录后 token 存在 AppStorage 里，所有请求统一自动带上，业务代码不用关心鉴权
+      const token: string | undefined = AppStorage.get<string>('token');
+      if (token !== undefined && token.length > 0) {
+        header['Authorization'] = `Bearer ${token}`;
+      }
       const options: http.HttpRequestOptions = {
         method: method,
         header: header,
@@ -26,6 +31,11 @@ export class HttpClient {
       };
 
       const response = await request.request(url, options);
+      if (response.responseCode === 401) {
+        // token 过期或被登出：清掉本地 token，让页面重新走登录
+        AppStorage.setOrCreate<string>('token', '');
+        throw new Error('登录已过期，请重新登录');
+      }
       if (response.responseCode !== 200) {
         throw new Error(`服务端返回 HTTP ${response.responseCode}`);
       }

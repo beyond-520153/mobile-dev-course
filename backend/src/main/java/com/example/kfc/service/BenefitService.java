@@ -44,4 +44,13 @@ public interface BenefitService {
 
     /** 是否大神卡持有者 */
     boolean isGodCardOwner(Long userId);
+
+    /**
+     * 给餐品列表叠加「当前登录用户的会员价」
+     *
+     * <p>用户身份从 {@link com.example.kfc.common.auth.UserContext} 取（拦截器已放好），
+     * 未登录或手上没有生效卡时什么都不做 —— 字段保持 null，前端就不展示专属价。
+     * 只在出参阶段调用，绝不写进餐品缓存。
+     */
+    void fillMemberPrice(List<com.example.kfc.domain.vo.ProductVO> products);
 }

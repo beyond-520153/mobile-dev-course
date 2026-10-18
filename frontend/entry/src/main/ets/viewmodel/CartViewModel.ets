@@ -50,6 +50,7 @@ export class CartViewModel {
 
   static clearUser(): void {
     CartViewModel.setCurrentUserId(0);
+    AppStorage.setOrCreate<string>('token', '');
     CartViewModel.reset();
   }
 }

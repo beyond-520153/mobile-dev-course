@@ -16,4 +16,17 @@ export interface Product {
   stock: number;
   sortOrder: number;
   status: number;
+
+  /*
+   * 会员价：后端只在「带了有效 token 且当前用户持卡」时返回，
+   * 未登录 / 未持卡时这几个字段为 undefined，卡片上就不显示标签。
+   */
+  /** 单件可享的会员价 */
+  memberPrice?: number;
+  /** 卡名：大神卡 / 咖啡卡 */
+  memberCardName?: string;
+  /** 规则名，如「每日 1 杯指定咖啡 10 元」 */
+  memberBenefit?: string;
+  /** 拼好的展示文案，如「大神卡 ¥10.00」 */
+  memberPriceText?: string;
 }

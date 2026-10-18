@@ -3,6 +3,7 @@ package com.example.kfc.controller;
 import com.example.kfc.common.result.Result;
 import com.example.kfc.domain.dto.ProductDTO;
 import com.example.kfc.domain.vo.ProductVO;
+import com.example.kfc.service.BenefitService;
 import com.example.kfc.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,9 +26,11 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final BenefitService benefitService;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, BenefitService benefitService) {
         this.productService = productService;
+        this.benefitService = benefitService;
     }
 
     /**
@@ -39,7 +42,10 @@ public class ProductController {
     @GetMapping
     public Result<List<ProductVO>> list(@RequestParam(required = false) Long categoryId,
                                        @RequestParam(required = false) String keyword) {
-        return Result.success(productService.list(categoryId, keyword));
+        List<ProductVO> list = productService.list(categoryId, keyword);
+        // 登录且持卡才会有值；匿名请求这里什么都不做
+        benefitService.fillMemberPrice(list);
+        return Result.success(list);
     }
 
     /**
@@ -53,12 +59,16 @@ public class ProductController {
      */
     @GetMapping("/search")
     public Result<List<ProductVO>> search(@RequestParam(required = false) String keyword) {
-        return Result.success(productService.search(keyword));
+        List<ProductVO> list = productService.search(keyword);
+        benefitService.fillMemberPrice(list);
+        return Result.success(list);
     }
 
     @GetMapping("/{id}")
     public Result<ProductVO> getById(@PathVariable Long id) {
-        return Result.success(productService.getById(id));
+        ProductVO vo = productService.getById(id);
+        benefitService.fillMemberPrice(List.of(vo));
+        return Result.success(vo);
     }
 
     @PostMapping

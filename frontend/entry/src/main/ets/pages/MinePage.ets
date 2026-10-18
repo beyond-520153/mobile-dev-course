@@ -45,6 +45,8 @@ struct MinePage {
   }
 
   private async logout(): Promise<void> {
+    // 先让后端删掉 Redis 会话，再清本地；顺序反了 token 在服务端还会活到自然过期
+    await UserApi.logout();
     CartViewModel.clearUser();
     this.user = null;
     this.toast('已退出登录');

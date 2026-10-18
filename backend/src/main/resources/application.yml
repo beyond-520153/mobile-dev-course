@@ -46,3 +46,17 @@ spring:
 logging:
   level:
     com.example.kfc: debug
+
+# ---------------------------------------------------------------------------
+# 登录鉴权配置
+#   secret 是 HMAC-SHA256 的签名密钥，长度必须 >= 32 字节（256 位）。
+#   生产环境务必改成环境变量注入：KFC_AUTH_SECRET=xxx，不要提交进仓库。
+#   ttl-minutes 同时决定 JWT 的 exp 和 Redis 会话的过期时间，两者保持一致，
+#   否则会出现「Redis 里还有、JWT 已过期」或者反过来的半死状态。
+# ---------------------------------------------------------------------------
+kfc:
+  auth:
+    secret: ${KFC_AUTH_SECRET:kfc-order-demo-jwt-secret-key-please-change-in-production-2026}
+    ttl-minutes: 60
+    header: Authorization
+    prefix: "Bearer "

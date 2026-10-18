@@ -31,6 +31,12 @@ export struct ProductCard {
     return o !== undefined && o > this.product.price;
   }
 
+  /** 会员价标签文案，空串表示当前用户没有可享的会员价 */
+  private memberLabel(): string {
+    const text: string | undefined = this.product.memberPriceText;
+    return text === undefined ? '' : text;
+  }
+
   build() {
     Row() {
       ProductThumb({ image: this.product.image ?? '', thumbSize: 78 })
@@ -70,6 +76,18 @@ export struct ProductCard {
             .fontSize(17)
             .fontColor(Theme.PRIMARY)
             .fontWeight(FontWeight.Bold)
+
+          // 登录且持卡时后端才会给这个文案，未登录不显示任何「专属价」痕迹
+          if (this.memberLabel() !== '') {
+            Text(this.memberLabel())
+              .fontSize(9)
+              .fontColor(Theme.PRIMARY)
+              .backgroundColor('#FFF4E0')
+              .borderRadius(3)
+              .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+              .margin({ left: 5 })
+              .maxLines(1)
+          }
 
           Blank()
 

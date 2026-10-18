@@ -106,6 +106,11 @@
   .price small{font-size:11px}
   img.thumb{object-fit:cover;display:block;padding:0}
   .origin{color:var(--sub);font-size:11px;text-decoration:line-through;margin-right:4px}
+  /* 会员价标签：登录且持卡时后端才下发 memberPriceText，未登录这一行不会渲染 */
+  .mtag{
+    margin-left:6px;padding:1px 4px;border-radius:3px;background:#FFF4E0;color:var(--primary);
+    font-size:9px;font-weight:700;white-space:nowrap;
+  }
   .plus{
     margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
     display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;
@@ -495,6 +500,8 @@ const state = {
   view: 'entry',           // entry | menu | cart | orders | orderDetail | address | mine | login
   userId: 0,
   user: null,
+  /** 登录拿到的 JWT，所有 api() 请求会自动带上 Authorization: Bearer ... */
+  token: '',
   /** 取餐方式，由入口页两张卡决定；只影响点餐页顶部标签，不参与下单（订单仍写死 PICKUP） */
   pickupType: 'PICKUP',
   categories: [],
@@ -533,9 +540,12 @@ const DEMO = { username: 'demo', password: '123456' };
 document.getElementById('apiBase').textContent = location.origin + '/api';
 
 async function api(path, method, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  // 与鸿蒙端一致：登录后所有请求自动带 Authorization
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
   const res = await fetch('/api' + path, {
     method: method || 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: headers,
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   const json = await res.json();
@@ -689,6 +699,7 @@ async function loadMember() {
 }
 async function login(username, password) {
   const user = await api('/users/login', 'POST', { username, password });
+  state.token = user.token;
   state.userId = user.id;
   state.user = user;
   await loadCart();
@@ -1069,6 +1080,7 @@ function prodRow(p) {
         <div class="foot">
           ${p.originPrice && p.originPrice > p.price ? `<span class="origin">¥${money(p.originPrice)}</span>` : ''}
           <span class="price"><small>¥</small>${money(p.price)}</span>
+          ${p.memberPriceText ? `<span class="mtag">${esc(p.memberPriceText)}</span>` : ''}
           <span class="plus ${p.stock > 0 ? '' : 'off'}" data-add="${p.id}" title="${p.stock > 0 ? '加入购物车' : '已售罄'}">+</span>
         </div>
       </div>

@@ -27,8 +27,11 @@ public interface UserService {
     /** 注册：用户名唯一性校验 + 密码加盐摘要存储 */
     UserVO register(UserRegisterDTO dto);
 
-    /** 登录：校验密码并签发 token（存 Redis，2 小时过期） */
+    /** 登录：校验密码哈希并签发 JWT（会话同时写入 Redis，1 小时过期） */
     UserVO login(LoginDTO dto);
+
+    /** 登出：删除该 token 对应的 Redis 会话（JWT 自身无法撤销，靠这一步失效） */
+    void logout(String token);
 
     UserVO update(Long id, UserUpdateDTO dto);
 

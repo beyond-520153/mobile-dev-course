@@ -10,8 +10,21 @@ public final class RedisKeyConstants {
     private RedisKeyConstants() {
     }
 
-    /** 登录 token：kfc:token:{userId} */
+    /**
+     * 登录会话：kfc:token:{token}
+     *
+     * <p>注意 key 是 token 本身（不是 userId）—— 拦截器拿到 token 直接 GET 即可，
+     * 不用先解析出 userId 再查，少一次依赖；value 是 {@code LoginUser} 的 JSON，
+     * 含 userId / username / nickname / role 等基础信息。
+     */
     public static final String TOKEN_PREFIX = "kfc:token:";
+
+    /**
+     * 用户当前 token 索引：kfc:token:user:{userId}
+     *
+     * <p>用于「登出全部设备」「判断某人是否在线」，以及按用户维度清理会话。
+     */
+    public static final String USER_TOKEN_PREFIX = "kfc:token:user:";
 
     /** 购物车 Hash：kfc:cart:{userId}，field = productId，value = quantity */
     public static final String CART_PREFIX = "kfc:cart:";
@@ -28,8 +41,13 @@ public final class RedisKeyConstants {
     /** 会员概要缓存有效期：60 秒（开卡 / 累计 V金 会主动失效，这里只是兜底） */
     public static final long MEMBER_SUMMARY_TTL_SECONDS = 60L;
 
-    /** 登录 token 有效期：2 小时 */
-    public static final long TOKEN_TTL_SECONDS = 2 * 60 * 60L;
+    /**
+     * 登录会话默认有效期：1 小时
+     *
+     * <p>真正生效的是 {@code kfc.auth.ttl-minutes}，这里只是兜底默认值，
+     * 改配置即可，不用改代码。
+     */
+    public static final long TOKEN_TTL_SECONDS = 60 * 60L;
 
     /** 餐品详情缓存有效期：10 分钟 */
     public static final long PRODUCT_TTL_SECONDS = 10 * 60L;
