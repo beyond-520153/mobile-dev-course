@@ -187,7 +187,7 @@
      结构：红色 hero（天际线 + 门店 + 骑手 + 车速取）
            → 三个取餐通道 → 四个功能圆图标 → 会员卡
            → APP热卖/大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab
-     顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏按要求先不做。 */
+     顶部四个频道「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」，只切高亮，菜单数据不变。 */
   .entry{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#F2F2F2}
   .entry-scroll{flex:1;overflow-y:auto;scrollbar-width:none}
   .entry-scroll::-webkit-scrollbar{display:none}
@@ -704,7 +704,7 @@ function render() {
      → APP热卖 / 大神卡专区 → 2 列商品 → 两张券 → 深色底部 tab。
 
    两条边界（按需求定的）：
-   1. 顶部「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」频道栏先不做；
+   1. 顶部四个频道「肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟」，只切高亮；
    2. 底部「首页 / 百胜出品 / AI点餐 / 大神卡 / WOW会员中心」只做入口外观，
       点击给「功能陆续开放」提示，不接任何业务。
    三个取餐通道进入的是同一个点餐页，只把选择写进 state.pickupType。 */
@@ -941,7 +941,7 @@ function entryTabBar(active) {
 
 /* 顶栏频道条：红底上一条半透明胶囊，选中项是白胶囊红字，右端渐隐收进圆钮。
    390 宽放不下全部品牌，所以整条横滑；点击只切高亮，菜单数据不动。 */
-const CHANNELS = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟', '甜品站', 'KPRO'];
+const CHANNELS = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟'];
 
 function channelBar() {
   const items = CHANNELS.map(c =>
@@ -1580,7 +1580,7 @@ function bind() {
     };
   });
   screen.querySelectorAll('[data-echmore]').forEach(el => {
-    el.onclick = () => toast('全部分类：肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟 / 甜品站 / KPRO');
+    el.onclick = () => toast('全部分类：肯德基 / 肯律轻食 / 肯悦咖啡 / 炸鸡兄弟');
   });
 
   // 底部 5 tab：大神卡 / 会员中心 接真实页面，首页回入口页，其余保持占位

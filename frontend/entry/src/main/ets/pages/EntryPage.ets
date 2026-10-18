@@ -34,8 +34,8 @@ interface Channel {
   type: string;
 }
 
-/** 顶栏频道：只切高亮，菜单数据仍是肯德基那一套 */
-const CHANNEL_TABS: string[] = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟', '甜品站', 'KPRO'];
+/** 顶栏频道：只切高亮，菜单数据仍是肯德基那一套（固定四个品牌，不横滑） */
+const CHANNEL_TABS: string[] = ['肯德基', '肯律轻食', '肯悦咖啡', '炸鸡兄弟'];
 
 /**
  * 取餐方式入口页（应用启动页）
@@ -405,7 +405,7 @@ struct EntryPage {
                 .fontWeight(this.channel === c ? FontWeight.Bold : FontWeight.Normal)
                 .fontColor(this.channel === c ? Theme.PRIMARY : '#FFFFFF')
                 .height(30)
-                .padding({ left: this.channel === c ? 12 : 13, right: this.channel === c ? 12 : 13 })
+                .padding({ left: this.channel === c ? 11 : 12, right: this.channel === c ? 11 : 12 })
                 .borderRadius(15)
                 .backgroundColor(this.channel === c ? '#FFFFFF' : Color.Transparent)
                 .onClick(() => {
