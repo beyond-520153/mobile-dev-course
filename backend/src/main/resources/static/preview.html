@@ -504,6 +504,8 @@ const state = {
   searching: false,
   /** 整页 innerHTML 重绘后要不要把焦点还给搜索框（否则打字打一半会掉焦点） */
   searchFocus: false,
+  /** 会员概要（/api/member/summary），入口页会员卡与 WOW 页共用 */
+  member: null,
   cartItems: [],
   cartCount: 0,
   cartAmount: 0,
@@ -649,11 +651,20 @@ async function loadAddresses() {
   if (!state.userId) { state.addresses = []; return; }
   state.addresses = await api('/addresses?userId=' + state.userId);
 }
+async function loadMember() {
+  if (!state.userId) { state.member = null; return; }
+  try {
+    state.member = await api('/member/summary?userId=' + state.userId);
+  } catch (e) {
+    state.member = null;
+  }
+}
 async function login(username, password) {
   const user = await api('/users/login', 'POST', { username, password });
   state.userId = user.id;
   state.user = user;
   await loadCart();
+  await loadMember();
   return user;
 }
 async function addToCart(product) {
@@ -953,6 +964,10 @@ function channelBar() {
 }
 
 function viewEntry() {
+  const m = state.member;
+  const vg = m ? (m.vgold >= 10000 ? (m.vgold / 10000).toFixed(1) + '万' : String(m.vgold)) : '--';
+  const cp = m ? m.couponCount : '--';
+  const bl = m ? Number(m.balance).toFixed(0) : '--';
   const tab = state.entryTab || 'HOT';
   return `
     <div class="entry">
@@ -980,9 +995,9 @@ function viewEntry() {
             <div class="mid">
               <div class="l1">元气满满的热美式<span class="tag">大神卡</span><span class="open">开通 ›</span></div>
               <div class="l2">
-                <span><u>¥金</u>5.1万</span>
-                <span>卡券<b>30</b>张</span>
-                <span>余额<b>0</b>元</span>
+                <span><u>V金</u>${vg}</span>
+                <span>卡券<b>${cp}</b>张</span>
+                <span>余额<b>${bl}</b>元</span>
               </div>
             </div>
             <div class="wow">WOW</div>
@@ -1348,8 +1363,22 @@ function wowFigureSvg() {
 /* 四项数据的占位值：后端还没有会员中心的表，先按官方截图填 */
 function viewWow() {
   const u = state.user;
+  const m = state.member;
   const name = u ? (u.nickname || u.username) : '未登录';
-  const no = u ? ('NO. ' + String(80000000 + Number(u.id) * 113).replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3')) : '登录后同步会员号';
+  // 会员号四位一空格：8000 0113
+  const fmtNo = (v) => String(v).replace(/(\d{4})(?=\d)/g, '$1 ');
+  const no = m ? ('NO. ' + fmtNo(m.memberNo)) : (u ? '会员号同步中…' : '登录后同步会员号');
+  const ac = m ? (m.achievement > 0 ? m.achievement : '--') : '--';
+  const vg = m ? (m.vgold >= 10000 ? (m.vgold / 10000).toFixed(1) + '万' : String(m.vgold)) : '--';
+  const cp = m ? m.couponCount : '--';
+  const bl = m ? Number(m.balance).toFixed(0) : '--';
+  const godCard = m ? (m.cards || []).find(c => c.cardType === 'GOD') : null;
+  const cfCard = m ? (m.cards || []).find(c => c.cardType === 'COFFEE') : null;
+  const cardName = godCard ? ('大神卡 · ' + godCard.cardName) : '大神卡 · 季卡';
+  const cardSub = godCard ? ('剩余 ' + godCard.remainDays + ' 天') : '未开通';
+  const openTxt = godCard ? '立即续费' : '立即开通';
+  const cfName = cfCard ? ('咖啡卡 · ' + cfCard.cardName) : '咖啡卡 · 30天';
+  const cfSub = cfCard ? ('剩余 ' + cfCard.remainDays + ' 天') : '未开通';
   return `<div class="wowpage">
     <div class="wowscroll">
       <div class="wowhead">
@@ -1366,10 +1395,10 @@ function viewWow() {
       </div>
 
       <div class="wowstats">
-        <div class="s"><div class="v">--</div><div class="k">成就</div></div>
-        <div class="s"><div class="v">5.1万</div><div class="k">V金</div></div>
-        <div class="s"><div class="v">29</div><div class="k">卡券</div></div>
-        <div class="s"><div class="v">0</div><div class="k">余额</div></div>
+        <div class="s"><div class="v">${ac}</div><div class="k">成就</div></div>
+        <div class="s"><div class="v">${vg}</div><div class="k">V金</div></div>
+        <div class="s"><div class="v">${cp}</div><div class="k">卡券</div></div>
+        <div class="s"><div class="v">${bl}</div><div class="k">余额</div></div>
       </div>
 
       <div class="wowacts">
@@ -1381,14 +1410,14 @@ function viewWow() {
 
       <div class="wowcards">
         <div class="stack">
-          <div class="c-mini"><span>咖啡卡 · 30天</span><span class="muted">未开通</span></div>
+          <div class="c-mini"><span>${cfName}</span><span class="muted">${cfSub}</span></div>
           <div class="c-main" data-etool="大神卡">
             <div class="cm-top">
               <div>
-                <div class="cm-name">大神卡 · 季卡</div>
-                <div class="cm-sub">剩余 0 天 · 未开通</div>
+                <div class="cm-name">${cardName}</div>
+                <div class="cm-sub">${cardSub}</div>
               </div>
-              <div class="cm-open">立即开通</div>
+              <div class="cm-open">${openTxt}</div>
             </div>
             <div class="cm-benefits">
               <div class="b"><b>免</b><span>满额免外送费</span></div>

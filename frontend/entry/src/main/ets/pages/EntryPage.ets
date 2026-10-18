@@ -4,6 +4,10 @@ import { EntryTabBar } from '../components/EntryTabBar';
 import { ProductApi } from '../api/ProductApi';
 import { Category } from '../model/Category';
 import { Product } from '../model/Product';
+import { UserApi } from '../api/UserApi';
+import { MemberApi } from '../api/MemberApi';
+import { MemberSummary } from '../model/Member';
+import { CartViewModel } from '../viewmodel/CartViewModel';
 
 /**
  * 首页陈列位配置：角标与价格照肯德基首页写，图与名称取真实菜单
@@ -61,6 +65,12 @@ struct EntryPage {
   /** 取餐方式，点餐页顶部据此显示标签 */
   @StorageLink('pickupType') pickupType: string = 'PICKUP';
 
+  /** 登录用户（入口页先登录一次，点餐页就不再重复登录） */
+  @StorageLink('userId') userId: number = 0;
+
+  /** 会员概要：会员卡上的 V金 / 卡券 / 余额 */
+  @State member: MemberSummary | null = null;
+
   /** 当前陈列 tab：HOT=APP热卖，VIP=大神卡专区 */
   @State hotTab: string = 'HOT';
 
@@ -96,9 +106,62 @@ struct EntryPage {
       this.pickupType = 'PICKUP';
     }
     this.loadPool();
+    this.initMember();
+  }
+
+  onPageShow(): void {
+    // 从大神卡页开完卡回来，会员卡上的 V金/卡券 要跟着变
+    this.loadMember();
   }
 
   /* ---------------------------- 数据 ---------------------------- */
+
+  /**
+   * 入口页先把演示账号登一次，后面的点餐页/购物车/会员页就都有 userId 了
+   *
+   * 之前登录只写在点餐页里，导致入口页这张会员卡拿不到真实数据，只能写死
+   * 「5.1万 / 30 张 / 0 元」，和 WOW 页对不上。这里补登录，两页同源。
+   */
+  private async initMember(): Promise<void> {
+    if (this.userId <= 0) {
+      try {
+        const user = await UserApi.login(Constants.DEMO_USERNAME, Constants.DEMO_PASSWORD);
+        CartViewModel.setCurrentUserId(user.id);
+      } catch (err) {
+        console.error('入口页自动登录演示账号失败: ' + JSON.stringify(err));
+        return;
+      }
+    }
+    await this.loadMember();
+  }
+
+  private async loadMember(): Promise<void> {
+    if (this.userId <= 0) {
+      return;
+    }
+    try {
+      this.member = await MemberApi.summary(this.userId);
+    } catch (err) {
+      this.member = null;
+    }
+  }
+
+  /** V金满 1 万按「万」显示，与 WOW 页口径一致 */
+  private vgoldText(): string {
+    if (this.member === null) {
+      return '--';
+    }
+    const v: number = this.member.vgold;
+    return v >= 10000 ? (v / 10000).toFixed(1) + '万' : v.toString();
+  }
+
+  private couponText(): string {
+    return this.member === null ? '--' : this.member.couponCount.toString();
+  }
+
+  private balanceText(): string {
+    return this.member === null ? '--' : Number(this.member.balance).toFixed(0);
+  }
 
   private loadPool(): void {
     ProductApi.listCategories()
@@ -701,17 +764,18 @@ struct EntryPage {
         .alignItems(VerticalAlign.Center)
 
         Row() {
-          Text('¥金')
+          Text('V金')
             .fontSize(11)
             .fontColor('#F0A200')
-          Text('5.1万')
+          Text(this.vgoldText())
             .fontSize(10.5)
             .fontColor('#9A9A9A')
+            .margin({ left: 2 })
           Text('卡券')
             .fontSize(10.5)
             .fontColor('#9A9A9A')
             .margin({ left: 13 })
-          Text('30')
+          Text(this.couponText())
             .fontSize(11.5)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1A1A1A')
@@ -722,7 +786,7 @@ struct EntryPage {
             .fontSize(10.5)
             .fontColor('#9A9A9A')
             .margin({ left: 13 })
-          Text('0')
+          Text(this.balanceText())
             .fontSize(11.5)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1A1A1A')

@@ -203,6 +203,11 @@ struct MinePage {
         })
         Divider().color(Theme.DIVIDER).margin({ left: 40 })
 
+        this.entryRow(Icons.CAR, '重新选择取餐方式', '', () => {
+          this.getUIContext().getRouter().replaceUrl({ url: 'pages/EntryPage' });
+        })
+        Divider().color(Theme.DIVIDER).margin({ left: 40 })
+
         this.entryRow(Icons.KEY, '切换账号 / 注册', '', () => {
           this.getUIContext().getRouter().pushUrl({ url: 'pages/LoginPage' });
         })
