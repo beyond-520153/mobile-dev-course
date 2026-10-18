@@ -506,6 +506,8 @@ const state = {
   searchFocus: false,
   /** 会员概要（/api/member/summary），入口页会员卡与 WOW 页共用 */
   member: null,
+  /** 大神卡页的档位：{ '大神卡': [...], '咖啡卡': [...] } */
+  plans: null,
   cartItems: [],
   cartCount: 0,
   cartAmount: 0,
@@ -665,6 +667,8 @@ async function login(username, password) {
   state.user = user;
   await loadCart();
   await loadMember();
+  await loadPlans('大神卡');
+  await loadPlans('咖啡卡');
   return user;
 }
 async function addToCart(product) {
@@ -1434,11 +1438,56 @@ function viewWow() {
 }
 
 /* ==================== 大神卡（付费会员） ==================== */
-const CARD_PLANS = [
-  { name: '季卡', price: '30', origin: '38', days: '90 天' },
-  { name: '年卡', price: '100', origin: '108', days: '365 天' },
-  { name: '月卡', price: '19', origin: '25', days: '30 天' }
+/** 接口拿不到时的兜底档位（与 V4__member.sql 种子一致） */
+const FALLBACK_GOD_PLANS = [
+  { code: 'GOD_SEASON', name: '季卡', price: 30, originPrice: 38, days: 90, privilegeNum: 11 },
+  { code: 'GOD_YEAR', name: '年卡', price: 100, originPrice: 108, days: 365, privilegeNum: 11 },
+  { code: 'GOD_MONTH', name: '月卡', price: 19, originPrice: 25, days: 30, privilegeNum: 11 }
 ];
+const FALLBACK_CF_PLANS = [
+  { code: 'COFFEE_30', name: '咖啡卡 · 30天', price: 12, originPrice: 15, days: 30, privilegeNum: 8 }
+];
+
+/** 当前 tab 的档位：优先接口，其次兜底 */
+function plansFor(tab) {
+  const got = state.plans ? state.plans[tab] : null;
+  if (got && got.length) return got;
+  return tab === '大神卡' ? FALLBACK_GOD_PLANS : FALLBACK_CF_PLANS;
+}
+
+/** 价格显示：去掉多余的 .00 */
+function money(v) {
+  const n = Number(v);
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+async function loadPlans(tab) {
+  try {
+    const type = tab === '大神卡' ? 'GOD' : 'COFFEE';
+    const list = await api('/member/plans?cardType=' + type);
+    if (!state.plans) state.plans = {};
+    state.plans[tab] = list;
+  } catch (e) {
+    if (state.plans) state.plans[tab] = null;
+  }
+}
+
+/** 开通 / 续费：与鸿蒙端同一条接口 */
+async function buyCard() {
+  if (!state.userId) { toast('请先登录再开通'); go('login'); return; }
+  const plans = plansFor(state.cardTab);
+  const plan = plans[state.cardPlan] || plans[0];
+  if (!plan) { toast('套餐加载失败'); return; }
+  const wasHolding = !!(state.member && (state.member.cards || []).some(
+    c => c.cardType === (state.cardTab === '大神卡' ? 'GOD' : 'COFFEE')));
+  try {
+    state.member = await api('/member/cards', 'POST', { userId: state.userId, planCode: plan.code });
+    toast((state.cardTab === '大神卡' ? '大神卡' : '咖啡卡') + (wasHolding ? '续费成功' : '开通成功'));
+    render();
+  } catch (e) {
+    toast(e.message);
+  }
+}
 
 function crownSvg() {
   return `<svg class="crown" viewBox="0 0 132 96" aria-hidden="true">
@@ -1450,15 +1499,22 @@ function crownSvg() {
 
 function viewMemberCard() {
   const tab = state.cardTab;
-  const plan = CARD_PLANS[state.cardPlan] || CARD_PLANS[0];
   const isGod = tab === '大神卡';
+  const plans = plansFor(tab);
+  const plan = plans[state.cardPlan] || plans[0];
+  const holding = state.member
+    ? (state.member.cards || []).find(c => c.cardType === (isGod ? 'GOD' : 'COFFEE'))
+    : null;
+  const subTxt = holding
+    ? ((isGod ? '大神卡' : '咖啡卡') + '生效中 · 剩余 ' + holding.remainDays + ' 天')
+    : (isGod ? '开通大神卡 立享 ' + plans[0].privilegeNum + ' 项特权' : '开通咖啡卡 天天 9.9 元');
   return navBar('付费会员', 'entry', '<span class="navcity">杭州市 ▾</span>') + `
     <div class="mcscroll">
       <div class="mcuser">
         <div class="ava">${ICON.person}</div>
         <div style="flex:1">
           <div class="mcname">${esc(state.user ? (state.user.nickname || state.user.username) : '未登录')}</div>
-          <div class="mcsub">${isGod ? '开通大神卡 立享 11 项特权' : '开通咖啡卡 天天 9.9 元'}</div>
+          <div class="mcsub">${subTxt}</div>
         </div>
         <div class="mclogin" data-tab="login">${state.userId ? '已登录' : '去登录'}</div>
       </div>
@@ -1475,17 +1531,17 @@ function viewMemberCard() {
       </div>
 
       <div class="mcplans">
-        ${CARD_PLANS.map((p, i) => `
+        ${plans.map((p, i) => `
           <div class="plan ${i === state.cardPlan ? 'on' : ''}" data-plan="${i}">
             <div class="p-name">${p.name}</div>
-            <div class="p-price"><small>¥</small>${p.price}</div>
-            <div class="p-org">¥${p.origin}</div>
-            <div class="p-days">${p.days}</div>
+            <div class="p-price"><small>¥</small>${money(p.price)}</div>
+            <div class="p-org">¥${money(p.originPrice)}</div>
+            <div class="p-days">${p.days} 天</div>
           </div>`).join('')}
       </div>
 
       <div class="mcsect">
-        <span>${isGod ? '11' : '8'} 特权</span>
+        <span>${plans[0].privilegeNum} 特权</span>
         <span class="muted">规则说明</span>
       </div>
       <div class="mcpriv">
@@ -1498,11 +1554,11 @@ function viewMemberCard() {
 
     <div class="mcbar">
       <div class="mb-l">
-        <div class="mb-p"><small>¥</small>${plan.price}</div>
-        <div class="mb-sub">券后价 ¥${Number(plan.price) - 5}</div>
+        <div class="mb-p"><small>¥</small>${money(plan.price)}</div>
+        <div class="mb-sub">券后价 ¥${money(Number(plan.price) - 5)}</div>
       </div>
       <div class="mb-gift" data-etool="赠好友">赠好友</div>
-      <button class="mb-buy" data-etool="立即购买">立即购买</button>
+      <button class="mb-buy" data-buy="1">${holding ? '立即续费' : '立即购买'}</button>
     </div>`;
 }
 
@@ -1625,10 +1681,19 @@ function bind() {
 
   // 大神卡页：大神卡 / 咖啡卡 切 tab、三档套餐切换
   screen.querySelectorAll('[data-cardtab]').forEach(el => {
-    el.onclick = () => { state.cardTab = el.dataset.cardtab; render(); };
+    el.onclick = async () => {
+      if (state.cardTab === el.dataset.cardtab) return;
+      state.cardTab = el.dataset.cardtab;
+      state.cardPlan = 0;
+      await loadPlans(state.cardTab);
+      render();
+    };
   });
   screen.querySelectorAll('[data-plan]').forEach(el => {
     el.onclick = () => { state.cardPlan = Number(el.dataset.plan); render(); };
+  });
+  screen.querySelectorAll('[data-buy]').forEach(el => {
+    el.onclick = () => buyCard();
   });
 
   // 入口页其余入口（功能图标 / 会员卡 / 券）：只做外观，点了给提示
