@@ -132,13 +132,14 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d kfc -f V2__kfc_real_menu.sql
 ```
 应看到 PostgreSQL `accepting connections` 和 Redis `PONG`（`status.bat` 可复查）。
 
-### 2. 建表 + 灌数据（按 V1 → V2 → V3 顺序，各跑一次）
+### 2. 建表 + 灌数据（按 V1 → V2 → V3 → V4 顺序，各跑一次）
 
 ```bash
 PSQL="D:\devtools\postgresql-17\bin\psql.exe"
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V1__init_schema.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V2__kfc_real_menu.sql
 $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V3__product_search.sql
+$PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V4__member.sql
 ```
 
 （Windows 上直接写三行 `"D:\devtools\postgresql-17\bin\psql.exe" -U postgres -d kfc -f <脚本路径>` 即可。）
@@ -148,10 +149,13 @@ $PSQL -U postgres -d kfc -f backend\src\main\resources\db\migration\V3__product_
 | `V1__init_schema.sql` | 建 7 张表 + 最小种子数据（4 分类 / 15 餐品占位、演示账号、1 条默认地址） | ✅ 用了 `IF NOT EXISTS` |
 | `V2__kfc_real_menu.sql` | **换成 KFC 官方真实菜单**：加 `origin_price` 列、清空餐品相关表、写入 13 分类 / 80 餐品 | ✅ 先 DELETE 再 INSERT |
 | `V3__product_search.sql` | 加 `pinyin_initials` 列并写入 80 行拼音首字母（供搜索用） | ✅ `ADD COLUMN IF NOT EXISTS` |
+| `V4__member.sql` | 建 3 张会员表（`t_member` / `t_member_plan` / `t_member_card`）+ 4 个档位种子 + 给已有用户补会员账户 | ✅ 用了 `IF NOT EXISTS` / `ON CONFLICT DO NOTHING` |
 
-⚠️ **三份都要跑**。后端的 `Product` 实体已经有 `originPrice` / `pinyinInitials` 两个字段，
+⚠️ **四份都要跑**。后端的 `Product` 实体已经有 `originPrice` / `pinyinInitials` 两个字段，
 而 `application.yml` 里 `ddl-auto: none`（表结构完全由脚本管，Hibernate 不会自己加列）——
 只跑 V1 的话，表里缺这两列，**任何查询餐品的接口都会报 `column does not exist`，整个点餐页起不来**。
+同理，漏跑 `V4` 的话 `/api/member/*` 全部报 `relation "t_member" does not exist`，
+入口页会员卡与会员中心会显示「--」。
 
 跑完 `V3` 可以用这条确认数据齐了（**别名用英文**，Windows 下 psql 命令行传中文参数会报
 `invalid byte sequence for encoding "UTF8"`）：
@@ -296,6 +300,7 @@ http://localhost:8090/preview.html
 | 订单明细 | `GET /order-items?orderId` |
 | 地址 | `GET /addresses?userId`、`POST/PUT/DELETE /addresses[/{id}]` |
 | 用户 | `POST /users/login`、`POST /users/register`、`GET /users/{id}`、`PUT /users/{id}` |
+| 会员 | `GET /member/summary?userId`、`GET /member/plans?cardType`、`GET /member/cards?userId`、`POST /member/cards`（开通/续费） |
 
 `Result` 结构：`{ code, message, data }`，业务成功 `code=200`。
 HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 接口或资源不存在 / 500 业务规则不通过 / 5000 系统异常）。
@@ -314,6 +319,29 @@ HTTP 状态码始终 200，业务错误靠 `code` 区分（400 参数错 / 404 �
 拼音首字母是**离线预计算**存在 `t_product.pinyin_initials` 列里的（由 `db/migration/V3__product_search.sql` 写入），
 Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 代价是以后换菜单要重跑一次导入脚本重新生成该列。
+
+### 会员接口（大神卡 / WOW 会员中心）
+
+三张表：`t_member`（一人一条账户：会员号 / V金 / 卡券 / 余额 / 成就）、
+`t_member_plan`（可售档位）、`t_member_card`（已开通的卡）。
+
+| 表 | 关键字段 | 说明 |
+|---|---|---|
+| `t_member` | `user_id` 唯一、`member_no` 唯一 | 与 `t_user` 一对一，`level` 由「是否持有生效卡」推出 |
+| `t_member_plan` | `code` 唯一、`card_type` | 种子 4 档：季卡 30/38、年卡 100/108、月卡 19/25、咖啡卡 12/15 |
+| `t_member_card` | `user_id` + `card_type` + `status` | 同一类型只保留一张 `ACTIVE` |
+
+四条规则（实现都在 `MemberServiceImpl`）：
+
+1. **续费不吞剩余天数**：在当前卡的 `expire_at` 上叠加 `months`，不是从今天重算。
+2. **同类型只有一张生效卡**：重复开通走续费；过期卡自动标 `EXPIRED`。
+3. **开卡赠 2 张卡券**，并把 `level` 升为 `WOW会员`；卡券目前是 `coupon_count` 计数，没有券实体。
+4. **支付累计 V金**：`OrderServiceImpl.pay()` 成功后按实付金额 1:1 调 `accrueVgold()`，
+   该方法内部吞异常——V金累计失败不能把已经成功的支付回滚掉。
+
+缓存：`GET /member/summary` 走 Redis `kfc:member:summary:{userId}`，TTL 60 秒；
+开卡、累计 V金 都会主动 `evict`，所以前端开完卡立刻刷新就能看到新数字。
+`remainDays` 由后端算（`Duration.between`），前端不做日期减法——避免设备时区不同算出不同天数。
 
 ---
 
@@ -377,6 +405,11 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 | **搜索三字段**：搜「咖啡」命中 7 条（分类名匹配）、搜「YWJ」命中 4 条（拼音首字母） | ✅ |
 | **搜索态交互**：左栏收起 → 结果 + 「共 N 个结果」；无结果给空态；清空恢复分类浏览 | ✅ |
 | **全端无 emoji**：鸿蒙 10 个 .ets + 预览页页面文本，emoji 检出 0 | ✅ |
+| **会员开卡**：买季卡 → 等级 `WOW会员`、券 29→31、到期 2027-01-18、`remainDays=92` | ✅ |
+| **会员续费叠加**：季卡后再买月卡，到期从 2027-01-18 叠到 2027-02-18（不吞剩余天数） | ✅ |
+| **支付累计 V金**：实付 313.40 → V金 51000→51313 | ✅ |
+| **会员概要不串数据**：开卡后 Redis `kfc:member:summary` 主动失效，前端立刻看到新值 | ✅ |
+| **两端同源**：入口页会员卡 / WOW 中心 / 大神卡 在预览页与鸿蒙端读同一套接口，数字一致（券 29） | ✅ |
 
 ### 前后端字段级一致性审计（脚本核对，全部通过）
 

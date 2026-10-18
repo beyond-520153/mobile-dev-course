@@ -158,7 +158,12 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.PAID);
         order.setPayTime(OffsetDateTime.now());
         order.setPickupCode(String.valueOf(ThreadLocalRandom.current().nextInt(1000, 9999)));
-        return getById(orderRepository.save(order).getId());
+        Order saved = orderRepository.save(order);
+
+        // 支付成功给会员累计 V金（消费 1 元 = 1 V金）；该方法内部吞异常，不影响支付
+        memberService.accrueVgold(order.getUserId(), order.getPayAmount());
+
+        return getById(saved.getId());
     }
 
     @Override
