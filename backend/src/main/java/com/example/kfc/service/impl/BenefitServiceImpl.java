@@ -28,6 +28,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -295,12 +296,41 @@ public class BenefitServiceImpl implements BenefitService {
         if (cardTypes.isEmpty()) {
             return List.of();
         }
-        Map<Long, String> categoryNames = categoryNames();
-        Map<String, Integer> usedToday = todayUsage(userId, LocalDate.now());
-        LocalTime now = LocalTime.now();
+        return buildBenefitList(
+                ruleRepository.findByCardTypeInAndStatusOrderBySortOrderAsc(cardTypes, 1),
+                todayUsage(userId, LocalDate.now()));
+    }
 
-        List<UserBenefitVO> result = new ArrayList<>();
-        for (BenefitRule rule : ruleRepository.findByCardTypeInAndStatusOrderBySortOrderAsc(cardTypes, 1)) {
+    @Override
+    public List<UserBenefitVO> listRules(String cardType, Long userId) {
+        if (cardType == null || cardType.isBlank()) {
+            return List.of();
+        }
+        String type = cardType.trim().toUpperCase();
+        List<BenefitRule> rules =
+                ruleRepository.findByCardTypeInAndStatusOrderBySortOrderAsc(Set.of(type), 1);
+        if (rules.isEmpty()) {
+            return List.of();
+        }
+        /*
+         * 购买页用：没开卡也要能看到「开通后能享什么」，所以不要求持卡；
+         * 但今日已用 / 剩余次数只有在这张卡真生效时才有意义，否则一律按「还没用过」算。
+         */
+        boolean holding = userId != null && activeCards(userId).stream()
+                .anyMatch(card -> type.equalsIgnoreCase(card.getCardType()));
+        Map<String, Integer> usedToday = holding
+                ? todayUsage(userId, LocalDate.now())
+                : Collections.emptyMap();
+        return buildBenefitList(rules, usedToday);
+    }
+
+    /** 规则 → 展示 VO：统一算「今日剩余 / 是否在时段 / 不可用原因」 */
+    private List<UserBenefitVO> buildBenefitList(List<BenefitRule> rules,
+                                                 Map<String, Integer> usedToday) {
+        Map<Long, String> categoryNames = categoryNames();
+        LocalTime now = LocalTime.now();
+        List<UserBenefitVO> result = new ArrayList<>(rules.size());
+        for (BenefitRule rule : rules) {
             int limit = rule.getDailyLimit() == null ? 1 : rule.getDailyLimit();
             int used = usedToday.getOrDefault(rule.getCode(), 0);
             int remaining = Math.max(0, limit - used);

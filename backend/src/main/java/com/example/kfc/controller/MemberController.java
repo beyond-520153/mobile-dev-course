@@ -72,4 +72,16 @@ public class MemberController {
     public Result<List<UserBenefitVO>> benefits(@RequestParam Long userId) {
         return Result.success(benefitService.listBenefits(userId));
     }
+
+    /**
+     * 某张卡能享的权益清单（购买页用，不要求已持卡）
+     *
+     * @param cardType GOD 大神卡 / COFFEE 咖啡卡
+     * @param userId   可选；传了且确实持卡时，次数按真实用量算
+     */
+    @GetMapping("/benefit-rules")
+    public Result<List<UserBenefitVO>> benefitRules(@RequestParam String cardType,
+                                                    @RequestParam(required = false) Long userId) {
+        return Result.success(benefitService.listRules(cardType, userId));
+    }
 }

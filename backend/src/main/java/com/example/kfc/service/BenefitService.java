@@ -39,6 +39,17 @@ public interface BenefitService {
     /** 用户手上卡对应的权益清单，带今日剩余次数与时段状态 */
     List<UserBenefitVO> listBenefits(Long userId);
 
+    /**
+     * 某张卡能享的全部权益（不要求已持卡）
+     *
+     * <p>给大神卡 / 咖啡卡购买页用：没开卡也要先看到「开通后能享什么」。
+     * 传了 userId 且确实持有该卡时，次数按真实用量算；否则按「还没用过」算。
+     *
+     * @param cardType GOD / COFFEE
+     * @param userId   可为 null
+     */
+    List<UserBenefitVO> listRules(String cardType, Long userId);
+
     /** 生效中的大神卡，没有返回 null */
     MemberCardVO activeGodCard(Long userId);
 
