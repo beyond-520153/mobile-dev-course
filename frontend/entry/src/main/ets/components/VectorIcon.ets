@@ -192,6 +192,10 @@ export class Icons {
   /** 右箭头 —— 门店行的「进入门店」 */
   static readonly CHEVRON_RIGHT: string =
     'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z';
+
+  /** 纸飞机 —— AI 点餐输入框的「发送」 */
+  static readonly SEND: string =
+    'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z';
 }
 
 /**

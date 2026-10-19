@@ -15,8 +15,11 @@ const COLUMNS: number = 3;
  * 版式照参考截图重绘，自上而下：
  *   深空联名 banner（返回键 + 「默认语音」胶囊 + KFC｜三体）
  *   → 两条消息气泡（小K 自我介绍 / 本次推荐话术 + 喇叭）
- *   → 浅粉推荐卡（门店行 + 3×2 餐品网格，每张卡带「选N」贴纸）
- *   → 底部固定操作区（换一换 / 开启新对话，九宫格 / 按住说话 / 声波）
+ *   → 浅粉推荐卡（门店行 + 纯文字推荐清单 + 3×2 餐品图网格，每张卡带「选N」贴纸）
+ *   → 底部固定操作区（换一换 / 开启新对话，文本输入框 / 发送键）
+ *
+ * 推荐结果分两段呈现：先用文字把「菜名 + 推荐理由 + 价格」列清楚，
+ * 让用户不点开图也能判断；文字下方才是带图可点的卡片，点一下即加入餐车。
  *
  * 数据来自后端 POST /api/ai/recommend：模型只挑「哪几样 + 一句话」，
  * 图片、价格、会员价都由后端回表补，所以这里拿到的卡一定能加购。
@@ -41,11 +44,8 @@ struct AIChatPage {
   @State degradeReason: string = '';
   @State errorMsg: string = '';
 
-  /** 文字输入浮层 */
-  @State asking: boolean = false;
+  /** 输入框里正在打的字；发送后清空 */
   @State draft: string = '';
-  /** 「按住说话」按下态，只做视觉反馈 */
-  @State pressing: boolean = false;
   /** 正在加购的餐品 id，防连点 */
   @State addingId: number = 0;
 
@@ -84,9 +84,33 @@ struct AIChatPage {
     }
   }
 
+  /**
+   * 发送输入框里的这句话
+   *
+   * 空串不发（模型对着空话也只能再给一份热门，白等 3 秒），
+   * 加载中也不发（避免连点把上一轮的结果冲掉）。
+   */
+  private send(): void {
+    const text: string = this.draft.trim();
+    if (text.length === 0) {
+      this.toast('先说说你想吃什么');
+      return;
+    }
+    if (this.loading) {
+      this.toast('小K 正在想，稍等一下');
+      return;
+    }
+    this.draft = '';
+    this.recommend(text);
+  }
+
+  /** 发送键是否点亮 */
+  private canSend(): boolean {
+    return this.draft.trim().length > 0 && !this.loading;
+  }
+
   /** 点卡片 = 加入餐车 */
-  private async addToCart(item: AiPick): Promise<void> {
-    if (this.userId <= 0) {
+  private async addToCart(item: AiPick): Promise<void> {    if (this.userId <= 0) {
       this.toast('请先登录后再点餐');
       return;
     }
@@ -168,6 +192,15 @@ struct AIChatPage {
   private memberText(product: Product): string {
     const text: string | undefined = product.memberPriceText;
     return text === undefined ? '' : text;
+  }
+
+  /** 文字清单末尾的小计（按现价相加，不含外送费与优惠，仅作参考） */
+  private subtotal(): string {
+    let sum: number = 0;
+    for (const item of this.items) {
+      sum += Number(item.product.price);
+    }
+    return sum.toFixed(2);
   }
 
   /** 把一维卡片数组按 3 个一行切开 */
@@ -253,22 +286,14 @@ struct AIChatPage {
   /* ============================== 结构 ============================== */
 
   build() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column() {
-        this.banner()
-        this.chatArea()
-        this.actions()
-      }
-      .width('100%')
-      .height('100%')
-      .backgroundColor('#FFFFFF')
-
-      if (this.asking) {
-        this.askPanel()
-      }
+    Column() {
+      this.banner()
+      this.chatArea()
+      this.actions()
     }
     .width('100%')
     .height('100%')
+    .backgroundColor('#FFFFFF')
   }
 
   /* ------------------------------ 顶部 banner ------------------------------ */
@@ -405,11 +430,15 @@ struct AIChatPage {
 
   /** 第二个气泡的文案：门店 + 模型回复 + 操作提示 */
   private talkText(): string {
+    // 请求失败时不装作有推荐，否则下面空着、文案还在说「看下面的推荐」，自相矛盾
+    if (this.errorMsg.length > 0) {
+      return '不好意思，小K 刚才没连上菜单，点下面的「重新试试」再来一次。';
+    }
     const name: string = this.store === null ? '农林大学餐厅' : this.store.name;
     if (this.reply.length > 0) {
-      return `已为您选择【${name}】，${this.reply}你可以点选其中一个，或直接对我说「选1和2」：`;
+      return `已为您选择【${name}】，${this.reply}下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
     }
-    return `已为您选择【${name}】，为您推荐以下餐品，你可以点选其中一个，或直接对我说「选1和2」：`;
+    return `已为您选择【${name}】，下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
   }
 
   /**
@@ -525,7 +554,17 @@ struct AIChatPage {
       .margin({ top: 7 })
       .alignItems(VerticalAlign.Center)
 
-      // 3×2 餐品网格
+      // 分隔：上面是「在哪吃」，下面是「吃什么」
+      Text('')
+        .width('100%')
+        .height(1)
+        .backgroundColor('#F3E1E5')
+        .margin({ top: 9 })
+
+      // 纯文字推荐清单：菜名 + 理由 + 价格
+      this.pickTextList()
+
+      // 3×2 餐品网格（图 + 点击加购，保持原样）
       Column() {
         ForEach(this.rowsOf(this.items), (row: AiPick[], rowIndex: number) => {
           Row() {
@@ -556,6 +595,77 @@ struct AIChatPage {
     .backgroundColor('#FFF5F6')
     .borderRadius(16)
     .margin({ top: 2 })
+  }
+
+  /**
+   * 纯文字推荐清单
+   *
+   * 每行三段：编号 → 菜名（黑）+ 理由（灰小字） → 价格（红）。
+   * 理由来自模型（≤14 字）；本地补位的卡也会给一句固定卖点，所以这一列不会空。
+   * 做成纯文字是为了让用户不点开图也能一眼判断「这几样合不合我口味、够不够吃」，
+   * 图网格留在下面负责「长什么样 + 点一下加车」。
+   */
+  @Builder
+  pickTextList() {
+    Column() {
+      ForEach(this.items, (item: AiPick) => {
+        Row() {
+          Text(`${item.index}`)
+            .fontSize(10)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+            .width(16)
+            .height(16)
+            .borderRadius(8)
+            .textAlign(TextAlign.Center)
+            .backgroundColor('#FF7A8E')
+            .margin({ top: 1 })
+
+          Column() {
+            Text(item.product.name)
+              .fontSize(12.5)
+              .lineHeight(17)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.TEXT)
+              .width('100%')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+            Text(item.reason)
+              .fontSize(11)
+              .lineHeight(13)
+              .fontColor(Theme.TEXT_SUB)
+              .width('100%')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 1 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          .margin({ left: 8 })
+
+          Text(`¥${this.priceMain(item.product)}`)
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Theme.PRIMARY)
+            .margin({ left: 8 })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
+        .margin({ top: 5 })
+      }, (item: AiPick) => `aitxt-${item.product.id}`)
+
+      Row() {
+        Blank()
+        Text(`小计 ¥${this.subtotal()}　共 ${this.items.length} 件`)
+          .fontSize(11)
+          .fontColor(Theme.TEXT_SUB)
+      }
+      .width('100%')
+      .margin({ top: 5 })
+    }
+    .width('100%')
+    .padding({ top: 1 })
   }
 
   /**
@@ -738,74 +848,44 @@ struct AIChatPage {
       }
       .width('100%')
 
-      // 第二行：九宫格 / 按住说话 / 声波
+      // 第二行：文本输入框 / 发送
       Row() {
-        // 九宫格：切到文字输入
+        TextInput({ placeholder: '想吃点什么？说说口味和预算', text: this.draft })
+          .layoutWeight(1)
+          .height(44)
+          .fontSize(14)
+          .fontColor(Theme.TEXT)
+          .placeholderColor('#B5B5B5')
+          .placeholderFont({ size: 13.5 })
+          // 空态把提示字居中，看起来像「点这里说话」；一打字就回到左对齐
+          .textAlign(this.draft.length === 0 ? TextAlign.Center : TextAlign.Start)
+          .backgroundColor('#F7F7F7')
+          .borderRadius(22)
+          .padding({ left: 16, right: 16 })
+          .caretColor(Theme.PRIMARY)
+          .enterKeyType(EnterKeyType.Send)
+          .onChange((value: string) => {
+            this.draft = value;
+          })
+          .onSubmit(() => {
+            this.send();
+          })
+
+        // 发送键：空串 / 加载中置灰，不做「点了没反应」
         Stack({ alignContent: Alignment.Center }) {
-          VectorIcon({ path: Icons.GRID, iconSize: 18, color: Theme.TEXT })
-        }
-        .width(44)
-        .height(44)
-        .borderRadius(12)
-        .backgroundColor('#FFFFFF')
-        .border({ width: 1, color: '#EDEDED' })
-        .onClick(() => {
-          this.asking = true;
-        })
-
-        // 按住说话（红胶囊）
-        Row() {
-          Stack({ alignContent: Alignment.Center }) {
-            Circle()
-              .width(20)
-              .height(20)
-              .fill('rgba(255,255,255,0.22)')
-            Text('K')
-              .fontSize(11)
-              .fontWeight(FontWeight.Bold)
-              .fontStyle(FontStyle.Italic)
-              .fontColor('#FFFFFF')
-          }
-          .width(20)
-          .height(20)
-
-          Text(this.pressing ? '松开 结束' : '按住说话')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#FFFFFF')
-            .margin({ left: 8 })
-        }
-        .layoutWeight(1)
-        .height(46)
-        .justifyContent(FlexAlign.Center)
-        .borderRadius(23)
-        .margin({ left: 10, right: 10 })
-        .linearGradient({
-          angle: 90,
-          colors: [['#F5333F', 0.0], ['#E4002B', 0.55], ['#C9002A', 1.0]]
-        })
-        .shadow({ radius: 10, color: '#33E4002B', offsetX: 0, offsetY: 4 })
-        .onTouch((event: TouchEvent) => {
-          if (event.type === TouchType.Down) {
-            this.pressing = true;
-          } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-            this.pressing = false;
-            this.toast('语音识别暂未接入，先用文字告诉小K');
-            this.asking = true;
-          }
-        })
-
-        // 声波键：同样进文字输入
-        Stack({ alignContent: Alignment.Center }) {
-          VectorIcon({ path: Icons.WAVE, iconSize: 18, color: Theme.TEXT })
+          VectorIcon({
+            path: Icons.SEND,
+            iconSize: 18,
+            color: this.canSend() ? '#FFFFFF' : '#B5B5B5'
+          })
         }
         .width(44)
         .height(44)
         .borderRadius(22)
-        .backgroundColor('#FFFFFF')
-        .border({ width: 1, color: '#EDEDED' })
+        .backgroundColor(this.canSend() ? Theme.PRIMARY : '#F0F0F0')
+        .margin({ left: 10 })
         .onClick(() => {
-          this.asking = true;
+          this.send();
         })
       }
       .width('100%')
@@ -857,75 +937,5 @@ struct AIChatPage {
     this.degraded = false;
     this.degradeReason = '';
     this.recommend('');
-  }
-
-  /* ------------------------------ 文字输入浮层 ------------------------------ */
-
-  @Builder
-  askPanel() {
-    Column() {
-      Column() {
-        Text('告诉小K你想吃什么')
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Theme.TEXT)
-
-        Text('比如「来点辣的，两个人吃」「30 元以内」「不要饮料」')
-          .fontSize(11)
-          .fontColor(Theme.TEXT_SUB)
-          .margin({ top: 4 })
-
-        TextInput({ placeholder: '说说你的口味和预算', text: this.draft })
-          .height(44)
-          .fontSize(14)
-          .backgroundColor('#F7F7F7')
-          .borderRadius(10)
-          .margin({ top: 12 })
-          .onChange((value: string) => {
-            this.draft = value;
-          })
-
-        Row() {
-          Text('取消')
-            .fontSize(14)
-            .fontColor(Theme.TEXT_SUB)
-            .layoutWeight(1)
-            .textAlign(TextAlign.Center)
-            .height(40)
-            .onClick(() => {
-              this.asking = false;
-              this.draft = '';
-            })
-
-          Text('让小K推荐')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#FFFFFF')
-            .layoutWeight(1)
-            .height(40)
-            .textAlign(TextAlign.Center)
-            .borderRadius(20)
-            .backgroundColor(Theme.PRIMARY)
-            .onClick(() => {
-              const text: string = this.draft.trim();
-              this.asking = false;
-              this.draft = '';
-              this.recommend(text);
-            })
-        }
-        .width('100%')
-        .margin({ top: 14 })
-        .alignItems(VerticalAlign.Center)
-      }
-      .alignItems(HorizontalAlign.Start)
-      .padding(18)
-      .width('86%')
-      .backgroundColor('#FFFFFF')
-      .borderRadius(18)
-    }
-    .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor('#66000000')
   }
 }
