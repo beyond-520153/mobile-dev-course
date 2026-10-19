@@ -9,6 +9,7 @@
     "pages/MinePage",
     "pages/LoginPage",
     "pages/WOWMemberPage",
-    "pages/MemberCardPage"
+    "pages/MemberCardPage",
+    "pages/AIChatPage"
   ]
 }

@@ -60,3 +60,27 @@ kfc:
     ttl-minutes: 60
     header: Authorization
     prefix: "Bearer "
+
+  # -------------------------------------------------------------------------
+  # AI 点餐（阿里云百炼 / 通义千问，走 OpenAI 兼容模式）
+  #   https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+  #
+  #   api-key 用环境变量覆盖：KFC_AI_API_KEY=sk-xxx，别把真 key 推到公开仓库。
+  #   model 当前用 qwen3.8-flash：关闭思考链后一次推荐 2~4 秒，够用且便宜。
+  #   换模型只改这一行，业务代码不动（都是标准 chat/completions）。
+  #
+  #   store-* 是推荐卡顶部那行门店信息。菜单是浙江农林大学东湖校区店（HZ2226）
+  #   的官方数据，所以门店也钉死成同一家，避免推荐与门店对不上。
+  # -------------------------------------------------------------------------
+  ai:
+    enabled: true
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api-key: ${KFC_AI_API_KEY:}
+    model: qwen3.8-flash
+    connect-timeout-ms: 5000
+    read-timeout-ms: 40000
+    temperature: 0.6
+    max-tokens: 900
+    store-name: 农林大学餐厅
+    store-address: 临安区武肃街666号浙江农林大学东湖校区
+    store-distance: 581m

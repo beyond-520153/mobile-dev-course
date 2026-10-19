@@ -326,6 +326,7 @@ curl -s http://localhost:8090/api/products/86
 | 订单明细 | `GET /order-items?orderId` |
 | 地址 | `GET /addresses?userId`、`POST/PUT/DELETE /addresses[/{id}]` |
 | 用户 | `POST /users/login`、`POST /users/register`、`POST /users/logout`、`GET /users/{id}`、`PUT /users/{id}` |
+| AI 点餐 | `POST /ai/recommend`（匿名可用，见第九节）、`GET /ai/health` |
 | 会员 | `GET /member/summary?userId`、`GET /member/plans?cardType`、`GET /member/cards?userId`、`POST /member/cards`（开通/续费）、`GET /member/benefits?userId`（可享权益+今日剩余次数） |
 
 `Result` 结构：`{ code, message, data }`，业务成功 `code=200`。
@@ -490,6 +491,7 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 启动 → pages/EntryPage（取餐方式入口页）
          ├─ 点「外送到家」→ pages/Index（点餐页，顶部标签显示「外送到家」）
          └─ 点「到店自取」→ pages/Index（同一个页面，顶部标签显示「到店自取」）
+       └─ 点底栏中间的「AI点餐」→ pages/AIChatPage（小K 推荐页，无底栏，左上角返回）
 ```
 
 两个入口进的是**同一个点餐页**，界面结构完全一致，唯一差别是顶部的取餐方式标签文案。
@@ -517,7 +519,68 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ---
 
-## 九、已实测通过的用例
+## 九、AI 点餐（通义千问 · 百炼兼容模式）
+
+### 链路
+
+```
+底栏「AI点餐」→ pages/AIChatPage → POST /api/ai/recommend
+   → AiServiceImpl 读真实菜单（status=1）→ 拼候选清单进 prompt
+   → qwen3.8-flash（关思考 + 强制 json_object）
+   → 模型只回 { reply, picks:[productId] }
+   → 回到数据库补齐图 / 价 / 库存 / 会员价 → AiRecommendVO
+```
+
+**模型只负责「挑哪几样、说一句人话」**，价格与图片一律来自数据库，模型碰不到。
+所以不会出现「AI 编了一个菜单里没有的餐品」或「推荐价和实际价对不上」。
+模型给的 id 全部非法时，按分类热度本地补位（`degraded=true`），页面照常渲染。
+
+### 配置（`application.yml` → `kfc.ai.*`）
+
+| 键 | 值 | 说明 |
+| --- | --- | --- |
+| `enabled` | `true` | 总开关；关掉直接走本地兜底，可离线演示 |
+| `base-url` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 百炼 OpenAI 兼容模式，不引官方 SDK |
+| `api-key` | `${KFC_AI_API_KEY:...}` | **走环境变量覆盖**，换 key 不动代码 |
+| `model` | `qwen3.8-flash` | 关思考后单次 2~4 秒 |
+| `connect-timeout-ms` / `read-timeout-ms` | `5000` / `40000` | flash 偶发高峰，读超时留足 |
+| `temperature` | `0.6` | 点餐要稳，别发散 |
+| `max-tokens` | `900` | 6 条推荐 + 一句回复足够，超了就是跑偏 |
+| `store-name` / `store-address` / `store-distance` | 农林大学餐厅 / 临安区武肃街666号… / `581m` | 与 V6 菜单同一门店，避免「推荐这家、地址那家」 |
+
+> 请求体是标准 `/chat/completions`，`enable_thinking=false` + `response_format=json_object`。
+> 不传 `enable_thinking` 时 qwen3 会先输出思考过程，延迟翻倍且 JSON 被污染。
+
+### 接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/ai/recommend` | body `{message, pickupType, count, userId}`，**匿名可用** |
+| `GET` | `/api/ai/health` | 回模型名 / 是否配了 key / 一次探活耗时，排查用 |
+
+`message` 一个字段承担三种语义，不做多轮会话表：
+
+- 空 —— 首屏默认推荐（对应截图里刚进门那一屏）
+- `换一换` —— 同一诉求换一批
+- 自然语言 —— 「来点辣的」「两个人吃，60 以内」「选1和2」
+
+`userId` 只在**没带 token** 时生效；带了有效 token 以拦截器解析的身份为准，
+否则任何人都能拿别人的 userId 套会员价。
+
+### 前端页面（`pages/AIChatPage.ets`）
+
+版式照参考截图：深空联名 banner（返回键 + 默认语音胶囊 + `KFC｜三体`）
+→ 两条白底气泡（第二条左下角一枚小喇叭）
+→ 浅粉推荐卡（门店行 + 3×2 网格，卡角「选N」渐变贴纸、现价 + 划线原价）
+→ 底部「换一换 / 开启新对话」+ 键盘 + 「按住说话」+ 声波。
+
+尺寸约定（两端同步，改一处必须改另一处）：banner `106`、气泡 `13.5/19` 行高、
+商品图 `68`、名称两行 `26`、网格间距 `6`、推荐卡内边距 `9` ——
+这组数值刚好让**六张卡在 390×844 的首屏内完整露出**（实测 `scrollHeight == clientHeight`）。
+
+---
+
+## 十、已实测通过的用例
 
 | 用例 | 结果 |
 |---|---|
@@ -607,7 +670,7 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ---
 
-## 十、注意事项 / 踩过的坑
+## 十一、注意事项 / 踩过的坑
 
 0. **加了拦截器之后，除了商品/分类/登录注册，所有 curl 都必须带 token**，
    否则拿到的不是业务错误而是 401（`{"code":401,...}`），很容易误以为接口坏了。
@@ -630,7 +693,7 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ---
 
-## 十一、已知问题（不阻塞 MVP，已记录待处理）
+## 十二、已知问题（不阻塞 MVP，已记录待处理）
 
 1. **没有登录态鉴权。** 所有接口的 `userId` 都靠前端在 URL 上带过来，服务端不做校验，
    所以现在还谈不上越权防护。等接入 token 拦截器时统一下掉。
@@ -648,12 +711,13 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 
 ---
 
-## 十二、下一步
+## 十三、下一步
 
+- [x] AI 点餐：通义千问推荐 + 六宫格页（`/api/ai/recommend`）
 - [ ] 前端在真机/模拟器实跑（emoji 占位图已于 2026-10-16 全部替换为 KFC 官方真实图，界面已两端对齐）
 - [ ] 取餐方式接入业务：外送时校验收货地址、把 `pickupType` 写进订单 —— 目前只做入口外观区分
 - [ ] 搜索加历史记录 / 热门词（现在只有实时结果）
-- [ ] 登录态改为 token 拦截器统一注入（现为首页自动登录演示账号）
+- [x] 登录鉴权：JWT + Redis 会话 + Interceptor 401（还剩登录页 UI，现为首页自动登录演示账号）
 - [ ] 后台管理端（餐品/分类/订单的增删改页面）
 - [ ] 支付流程接入（现为直接改状态的假支付）
 - [x] 用户侧地址选择、外送配送费规则（V5：外送 9 元，大神卡满 29 元免）

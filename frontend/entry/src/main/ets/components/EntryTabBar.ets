@@ -118,7 +118,15 @@ export struct EntryTabBar {
       .layoutWeight(1)
       .offset({ x: 0, y: -18 })
       .onClick(() => {
-        this.tip('「AI点餐」功能正在开发中');
+        // AI 点餐是独立页（有自己的顶部横幅，没有底栏），用 push 进来，
+        // 页面左上角的返回键才能退回入口页
+        if (this.active !== 'ai') {
+          try {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/AIChatPage' });
+          } catch (e) {
+            console.error('pushUrl AIChatPage failed: ' + JSON.stringify(e));
+          }
+        }
       })
 
       // 4. 大神卡

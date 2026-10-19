@@ -49,13 +49,16 @@ public class AuthInterceptor implements HandlerInterceptor {
             "/api/categories",
             "/api/categories/**",
             "/api/member/plans",
-            "/api/member/benefits"
+            "/api/member/benefits",
+            "/api/member/benefit-rules",
+            "/api/ai/health"
     };
 
-    /** 登录 / 注册本身当然不能要求先登录 */
+    /** 登录 / 注册本身当然不能要求先登录；AI 推荐同理（游客也能问，只是没有会员价） */
     private static final String[] PUBLIC_POST = {
             "/api/users/login",
-            "/api/users/register"
+            "/api/users/register",
+            "/api/ai/recommend"
     };
 
     private final JwtUtil jwtUtil;

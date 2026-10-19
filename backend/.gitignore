@@ -8,3 +8,6 @@ target/
 .vscode/
 .DS_Store
 *.log
+
+# 本机私有密钥（AI Key 等）
+.env.local

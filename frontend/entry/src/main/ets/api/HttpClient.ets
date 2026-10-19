@@ -11,8 +11,11 @@ import { ApiResult } from '../model/ApiResult';
  */
 export class HttpClient {
 
-  private static async send<T>(path: string, method: http.RequestMethod, body?: Object): Promise<T> {
+  private static async send<T>(path: string, method: http.RequestMethod,
+                               body?: Object, timeout?: number): Promise<T> {
     const url = Constants.BASE_URL + path;
+    // 默认 10 秒；AI 分析这类慢接口可以把 timeout 传大一点
+    const limit = timeout === undefined ? Constants.TIMEOUT : timeout;
     const request = http.createHttp();
     try {
       const header: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -24,8 +27,8 @@ export class HttpClient {
       const options: http.HttpRequestOptions = {
         method: method,
         header: header,
-        connectTimeout: Constants.TIMEOUT,
-        readTimeout: Constants.TIMEOUT,
+        connectTimeout: limit,
+        readTimeout: limit,
         expectDataType: http.HttpDataType.STRING,
         extraData: body === undefined ? '' : JSON.stringify(body)
       };
@@ -58,8 +61,14 @@ export class HttpClient {
     return HttpClient.send<T>(path, http.RequestMethod.GET);
   }
 
-  static post<T>(path: string, body?: Object): Promise<T> {
-    return HttpClient.send<T>(path, http.RequestMethod.POST, body);
+  /**
+   * POST
+   *
+   * @param timeout 可选超时（毫秒）。AI 推荐要等模型出结果，单独放宽到 30~40 秒，
+   *                不然还在思考就被本地 10 秒超时掐断，白白降级
+   */
+  static post<T>(path: string, body?: Object, timeout?: number): Promise<T> {
+    return HttpClient.send<T>(path, http.RequestMethod.POST, body, timeout);
   }
 
   static put<T>(path: string, body: Object): Promise<T> {
