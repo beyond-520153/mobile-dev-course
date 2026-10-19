@@ -3,6 +3,7 @@ package com.example.kfc.service.impl;
 import com.example.kfc.common.exception.BusinessException;
 import com.example.kfc.config.AiProperties;
 import com.example.kfc.domain.dto.AiChatDTO;
+import com.example.kfc.domain.dto.AiChatDTO.ChatTurn;
 import com.example.kfc.domain.entity.Category;
 import com.example.kfc.domain.entity.Product;
 import com.example.kfc.domain.vo.AiPickVO;
@@ -69,6 +70,12 @@ public class AiServiceImpl implements AiService {
 
     /** 用户话术上限 */
     private static final int MAX_MESSAGE_CHARS = 200;
+
+    /** 带进 prompt 的历史条数上限（一问一答算两条） */
+    private static final int MAX_HISTORY_TURNS = 6;
+
+    /** 历史单条字数上限：旧话术只是用来「接上下文」，不用原文照搬 */
+    private static final int MAX_HISTORY_CHARS = 120;
 
     /** 模型失败后的冷却时间：这段时间内直接本地推荐，不再去等超时 */
     private static final long FAIL_COOLDOWN_MS = 20_000L;
@@ -156,6 +163,8 @@ public class AiServiceImpl implements AiService {
         vo.setDegraded(false);
 
         /* ---------------- 1. 调模型，拿到「选了哪几个 + 一句回复」 ---------------- */
+        // 历史只清洗一次：模型要拿它理解「再加个喝的」，预算约束要拿它接上一轮说的金额
+        List<ChatTurn> history = sanitizeHistory(dto);
         Set<Long> modelPicked = new LinkedHashSet<>();
         Map<Long, String> modelReasons = new LinkedHashMap<>();
         if (!props.isEnabled()) {
@@ -166,7 +175,7 @@ public class AiServiceImpl implements AiService {
             markDegraded(vo, "AI 正在恢复中，先展示今日热门");
         } else {
             try {
-                String content = callModel(message, menu, categoryNames, count);
+                String content = callModel(message, history, menu, categoryNames, count);
                 ModelPicks parsed = parsePicks(content);
                 modelPicked.addAll(parsed.ids);
                 modelReasons.putAll(parsed.reasons);
@@ -207,7 +216,7 @@ public class AiServiceImpl implements AiService {
         }
 
         // 预算硬约束：模型经常「听懂了但没算」，这里在后端兜一道
-        String budgetNote = enforceBudget(message, finalIds, byId, menu, count, categoryNames);
+        String budgetNote = enforceBudget(message, history, finalIds, byId, menu, count, categoryNames);
         if (budgetNote != null) {
             vo.setReply(budgetNote);
         }
@@ -257,15 +266,56 @@ public class AiServiceImpl implements AiService {
     /* ============================ 调用模型 ============================ */
 
     /**
+     * 清洗前端带过来的历史
+     *
+     * <p>三件事必须做，否则这就是一个开放给客户端的 prompt 注入入口：
+     * role 只放行 user / assistant（丢掉 system 之类）、单条截断、总量截断。
+     * 只留最近 6 条 —— 点餐追问很少超过三轮，更早的既没用又占 token。
+     */
+    private List<ChatTurn> sanitizeHistory(AiChatDTO dto) {
+        List<ChatTurn> raw = dto == null ? null : dto.getHistory();
+        if (raw == null || raw.isEmpty()) {
+            return List.of();
+        }
+        List<ChatTurn> kept = new ArrayList<>();
+        for (ChatTurn turn : raw) {
+            if (turn == null) {
+                continue;
+            }
+            String role = turn.getRole() == null ? "" : turn.getRole().trim();
+            if (!"user".equals(role) && !"assistant".equals(role)) {
+                continue;
+            }
+            String text = cut(turn.getText(), MAX_HISTORY_CHARS);
+            if (isBlank(text)) {
+                continue;
+            }
+            ChatTurn one = new ChatTurn();
+            one.setRole(role);
+            one.setText(text);
+            kept.add(one);
+        }
+        if (kept.size() > MAX_HISTORY_TURNS) {
+            kept = new ArrayList<>(kept.subList(kept.size() - MAX_HISTORY_TURNS, kept.size()));
+        }
+        return kept;
+    }
+
+
+    /**
      * 发起一次 chat/completions 调用，返回模型输出的原始文本
      *
      * <p>百炼的兼容模式对 qwen3 系列支持 {@code enable_thinking=false}：
      * 关掉思考链后这类小模型 2~4 秒就能出结果，开着会翻好几倍，点餐场景没必要。
      */
-    private String callModel(String message, List<Product> menu,
+    private String callModel(String message, List<ChatTurn> history, List<Product> menu,
                              Map<Long, String> categoryNames, int count) throws Exception {
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
+        // 历史放在 system 之后、本轮提问之前：模型据此理解「再加个喝的」指的是上一轮
+        for (ChatTurn turn : history) {
+            messages.add(Map.of("role", turn.getRole(), "content", turn.getText()));
+        }
         messages.add(Map.of("role", "user", "content",
                 buildUserPrompt(message, menu, categoryNames, count)));
 
@@ -499,9 +549,10 @@ public class AiServiceImpl implements AiService {
      *
      * @return 触发裁剪时返回改写后的回复文案；没超预算返回 null（保留模型自己那句话）
      */
-    private String enforceBudget(String message, List<Long> ids, Map<Long, Product> byId,
-                                 List<Product> menu, int count, Map<Long, String> categoryNames) {
-        BigDecimal budget = parseBudget(message);
+    private String enforceBudget(String message, List<ChatTurn> history, List<Long> ids,
+                                 Map<Long, Product> byId, List<Product> menu, int count,
+                                 Map<Long, String> categoryNames) {
+        BigDecimal budget = resolveBudget(message, history);
         if (budget == null || budget.signum() <= 0) {
             return null;
         }
@@ -545,6 +596,46 @@ public class AiServiceImpl implements AiService {
         ids.addAll(kept);
         log.info("预算 {} 元触发裁剪，最终 {} 样、合计 {} 元", plain(budget), kept.size(), plain(total));
         return "按您 " + plain(budget) + " 元以内的预算，这几样合计 ¥" + plain(total) + "，不会超。";
+    }
+
+    /** 用户主动撤销预算约束的措辞 */
+    private static final String[] BUDGET_CANCEL = {
+            "不限预算", "预算不限", "不用管预算", "别管预算", "不管预算", "随便花"
+    };
+
+    /**
+     * 本轮该守多少预算
+     *
+     * <p>多轮对话里用户通常只说一次预算：「两个人吃 60 以内」→「再加个喝的」。
+     * 第二轮句子本身没有金额，但约束还在，所以当前句抠不到就往前翻用户说过的话，
+     * 命中最近一次提到的金额。<b>顺序是从近到远</b>，因为用户可能改口「改成 40」。
+     * 说「不限预算」这类话则视为撤销，不再继承。
+     */
+    private BigDecimal resolveBudget(String message, List<ChatTurn> history) {
+        for (String cancel : BUDGET_CANCEL) {
+            if (message != null && message.contains(cancel)) {
+                return null;
+            }
+        }
+        BigDecimal own = parseBudget(message);
+        if (own != null) {
+            return own;
+        }
+        if (history == null) {
+            return null;
+        }
+        for (int i = history.size() - 1; i >= 0; i--) {
+            ChatTurn turn = history.get(i);
+            if (turn == null || !"user".equals(turn.getRole())) {
+                continue;
+            }
+            BigDecimal older = parseBudget(turn.getText());
+            if (older != null) {
+                log.info("本轮没提金额，沿用上一轮预算 {} 元", plain(older));
+                return older;
+            }
+        }
+        return null;
     }
 
     /** 抠预算金额；一句话里多个数字时取第一个「像预算」的 */

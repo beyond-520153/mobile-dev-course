@@ -3,11 +3,26 @@ import { Icons, VectorIcon } from '../components/VectorIcon';
 import { AiApi } from '../api/AiApi';
 import { CartApi } from '../api/CartApi';
 import { CartViewModel } from '../viewmodel/CartViewModel';
-import { AiPick, AiStore } from '../model/AiRecommend';
+import { AiPick, AiStore, ChatTurn } from '../model/AiRecommend';
 import { Product } from '../model/Product';
 
 /** 每行放几张卡：截图为 3 列 × 2 行 */
 const COLUMNS: number = 3;
+
+/** 中文数字，用于把「选一和二」翻成编号；「两」不在这里，避免把「两个人吃」当成选号 */
+const CN_DIGITS: string = '一二三四五六七八九';
+
+/** 允许出现在「选号句」里的字符。命中之外的一律不当成选号，防止误判 */
+const PICK_CHARS: string = ' 选要加来第个号件份和、,，0123456789一二三四五六七八九';
+
+/** 一句话气泡 */
+interface ChatMsg {
+  /** ForEach 的 key，自增 */
+  id: number;
+  /** true = 自己说的（右侧），false = 小K说的（左侧） */
+  mine: boolean;
+  text: string;
+}
 
 /**
  * AI 点餐页
@@ -37,17 +52,29 @@ struct AIChatPage {
   @StorageLink('cartCount') cartCount: number = 0;
 
   @State items: AiPick[] = [];
-  @State reply: string = '';
   @State store: AiStore | null = null;
   @State loading: boolean = true;
   @State degraded: boolean = false;
   @State degradeReason: string = '';
   @State errorMsg: string = '';
 
+  /** 对话气泡：只存文字，推荐卡永远跟在最新一条小K气泡下面 */
+  @State messages: ChatMsg[] = [];
   /** 输入框里正在打的字；发送后清空 */
   @State draft: string = '';
   /** 正在加购的餐品 id，防连点 */
   @State addingId: number = 0;
+  /** 已经加过车的餐品 id，卡片上打「已加」 */
+  @State addedIds: number[] = [];
+  /** 正在按「选1和2」批量加车 */
+  @State picking: boolean = false;
+
+  /** 模型上下文：只往前带、不驱动 UI，所以不用 @State */
+  private history: ChatTurn[] = [];
+  /** 气泡自增 id，同时兼作 ForEach 的 key */
+  private seq: number = 0;
+  /** 上一次发出去的话，失败时「重新试试」用它重发 */
+  private lastAsk: string = '';
 
   /** banner 画布 */
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true));
@@ -55,40 +82,87 @@ struct AIChatPage {
   private readonly bannerHeight: number = 106;
 
   aboutToAppear(): void {
-    this.recommend('');
+    this.say(false, 'Hi，我是小K！看看今天的推荐吧！');
+    this.ask('', false);
   }
 
   /* ============================== 数据 ============================== */
 
+  /** 追加一条气泡 */
+  private say(mine: boolean, text: string): void {
+    this.seq += 1;
+    const msg: ChatMsg = { id: this.seq, mine: mine, text: text };
+    this.messages = this.messages.concat([msg]);
+  }
+
   /**
-   * 要一组推荐
+   * 问一轮推荐
    *
-   * @param message 空串表示首屏；「换一换」也原样传下去，让模型换一组
+   * @param message  传给模型的话；空串表示首屏
+   * @param echoUser 是否先把这句话作为「我说的」气泡挂上去
    */
-  private async recommend(message: string): Promise<void> {
+  private async ask(message: string, echoUser: boolean): Promise<void> {
+    this.lastAsk = message;
+    if (echoUser) {
+      this.say(true, message);
+    }
     this.loading = true;
     this.errorMsg = '';
+    this.items = [];
     try {
-      const res = await AiApi.recommend(message, this.pickupType);
+      const res = await AiApi.recommend(message, this.pickupType, this.history);
       this.items = res.items;
-      this.reply = res.reply;
       this.store = res.store;
       this.degraded = res.degraded === true;
       this.degradeReason = res.degradeReason === undefined ? '' : res.degradeReason;
+      this.remember(message, res.reply);
+      this.say(false, this.assistantLine(res.reply, res.store));
     } catch (err) {
       const msg: string = err instanceof Error ? err.message : '推荐失败，请稍后重试';
       this.errorMsg = msg;
       this.items = [];
+      this.say(false, '不好意思，小K 刚才没连上菜单，点下面的「重新试试」再来一次。');
     } finally {
       this.loading = false;
+      // 首屏别滚：刚进来要看到自我介绍和话术；只有用户发了话才追到最新
+      if (message.length > 0) {
+        this.scrollToEnd();
+      }
     }
+  }
+
+  /**
+   * 记进上下文
+   *
+   * 首屏（空话）和「换一换」不算一轮对话：它们没有语义增量，
+   * 塞进历史只会让模型误以为用户反复在说同一件事。
+   */
+  private remember(message: string, reply: string): void {
+    if (message.length === 0 || message === '换一换') {
+      return;
+    }
+    const mine: ChatTurn = { role: 'user', text: message };
+    const answer: ChatTurn = { role: 'assistant', text: reply };
+    this.history = this.history.concat([mine, answer]);
+    if (this.history.length > 6) {
+      this.history = this.history.slice(this.history.length - 6);
+    }
+  }
+
+  /** 小K 的话术：门店 + 模型回复 + 引导 */
+  private assistantLine(reply: string, store: AiStore | null): string {
+    const name: string = store === null ? '农林大学餐厅' : store.name;
+    if (reply.length > 0) {
+      return `已为您选择【${name}】，${reply}下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
+    }
+    return `已为您选择【${name}】，下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
   }
 
   /**
    * 发送输入框里的这句话
    *
-   * 空串不发（模型对着空话也只能再给一份热门，白等 3 秒），
-   * 加载中也不发（避免连点把上一轮的结果冲掉）。
+   * 「选1和2」这类是明确指令，本地直接加车，不花三秒去问模型；
+   * 其余才当偏好描述发给模型。
    */
   private send(): void {
     const text: string = this.draft.trim();
@@ -96,12 +170,18 @@ struct AIChatPage {
       this.toast('先说说你想吃什么');
       return;
     }
-    if (this.loading) {
+    if (this.loading || this.picking) {
       this.toast('小K 正在想，稍等一下');
       return;
     }
     this.draft = '';
-    this.recommend(text);
+    const picked: number[] = this.parsePickIndexes(text);
+    if (picked.length > 0) {
+      this.say(true, text);
+      this.addPicked(picked);
+      return;
+    }
+    this.ask(text, true);
   }
 
   /** 发送键是否点亮 */
@@ -109,8 +189,75 @@ struct AIChatPage {
     return this.draft.trim().length > 0 && !this.loading;
   }
 
+  /**
+   * 把「选1和2」「第 3 个」「一、三」解析成卡片编号
+   *
+   * 只在整句都由选号字符构成时才认 —— 否则「两个人吃」会被当成选 2 号。
+   * 「两」故意不在中文数字表里，它是数量词不是序号。
+   */
+  private parsePickIndexes(text: string): number[] {
+    for (let i = 0; i < text.length; i++) {
+      if (PICK_CHARS.indexOf(text.charAt(i)) < 0) {
+        return [];
+      }
+    }
+    const out: number[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const ch: string = text.charAt(i);
+      let value: number = -1;
+      if (ch >= '0' && ch <= '9') {
+        value = Number(ch);
+      } else {
+        const at: number = CN_DIGITS.indexOf(ch);
+        if (at >= 0) {
+          value = at + 1;
+        }
+      }
+      if (value >= 1 && value <= this.items.length && out.indexOf(value) < 0) {
+        out.push(value);
+      }
+    }
+    return out;
+  }
+
+  /** 按编号批量加车，并回一句人话 */
+  private async addPicked(indexes: number[]): Promise<void> {
+    if (this.userId <= 0) {
+      this.say(false, '要先登录才能加餐车哦，回入口页登录一下再试。');
+      return;
+    }
+    this.picking = true;
+    const names: string[] = [];
+    try {
+      for (const idx of indexes) {
+        const hit: AiPick | undefined = this.items.find((x: AiPick) => x.index === idx);
+        if (hit === undefined) {
+          continue;
+        }
+        try {
+          await CartApi.add({ userId: this.userId, productId: hit.product.id, quantity: 1 });
+          names.push(hit.product.name);
+          this.markAdded(hit.product.id);
+        } catch (err) {
+          const msg: string = err instanceof Error ? err.message : '加入餐车失败';
+          this.toast(msg);
+        }
+      }
+      await CartViewModel.refresh(this.userId);
+    } finally {
+      this.picking = false;
+    }
+    if (names.length > 0) {
+      this.say(false, `好嘞，${names.join('、')} 已经放进餐车，还要再加点别的吗？`);
+    } else {
+      this.say(false, '这次的推荐里没对上号，说说想吃哪一类，我再挑。');
+    }
+    this.scrollToEnd();
+  }
+
   /** 点卡片 = 加入餐车 */
-  private async addToCart(item: AiPick): Promise<void> {    if (this.userId <= 0) {
+  private async addToCart(item: AiPick): Promise<void> {
+    if (this.userId <= 0) {
       this.toast('请先登录后再点餐');
       return;
     }
@@ -121,6 +268,7 @@ struct AIChatPage {
     try {
       await CartApi.add({ userId: this.userId, productId: item.product.id, quantity: 1 });
       await CartViewModel.refresh(this.userId);
+      this.markAdded(item.product.id);
       this.toast(`已加入餐车：${item.product.name}`);
     } catch (err) {
       const msg: string = err instanceof Error ? err.message : '加入餐车失败';
@@ -128,6 +276,29 @@ struct AIChatPage {
     } finally {
       this.addingId = 0;
     }
+  }
+
+  /** 记一笔「已加过」；卡片据此把「选N」换成绿色「已加」 */
+  private markAdded(productId: number): void {
+    if (this.addedIds.indexOf(productId) >= 0) {
+      return;
+    }
+    this.addedIds = this.addedIds.concat([productId]);
+  }
+
+  private isAdded(productId: number): boolean {
+    return this.addedIds.indexOf(productId) >= 0;
+  }
+
+  /** 滚到底：新气泡进来时别让人找 */
+  private scrollToEnd(): void {
+    setTimeout(() => {
+      try {
+        this.scroller.scrollEdge(Edge.Bottom);
+      } catch (e) {
+        console.warn('scrollEdge failed: ' + JSON.stringify(e));
+      }
+    }, 120);
   }
 
   private toast(msg: string): void {
@@ -391,11 +562,10 @@ struct AIChatPage {
   chatArea() {
     Scroll(this.scroller) {
       Column() {
-        // 气泡 1：小K 自我介绍
-        this.bubble('Hi，我是小K！看看今天的推荐吧！', false)
-
-        // 气泡 2：本次推荐话术 + 喇叭
-        this.bubble(this.talkText(), true)
+        // 多轮对话：自己说的靠右红底，小K 说的靠左白底，按时间顺序排
+        ForEach(this.messages, (m: ChatMsg) => {
+          this.bubble(m.text, m.mine, !m.mine)
+        }, (m: ChatMsg) => `msg-${m.id}`)
 
         if (this.degraded && this.degradeReason.length > 0) {
           Text(this.degradeReason)
@@ -428,33 +598,21 @@ struct AIChatPage {
     .align(Alignment.Top)
   }
 
-  /** 第二个气泡的文案：门店 + 模型回复 + 操作提示 */
-  private talkText(): string {
-    // 请求失败时不装作有推荐，否则下面空着、文案还在说「看下面的推荐」，自相矛盾
-    if (this.errorMsg.length > 0) {
-      return '不好意思，小K 刚才没连上菜单，点下面的「重新试试」再来一次。';
-    }
-    const name: string = this.store === null ? '农林大学餐厅' : this.store.name;
-    if (this.reply.length > 0) {
-      return `已为您选择【${name}】，${this.reply}下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
-    }
-    return `已为您选择【${name}】，下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：`;
-  }
-
   /**
    * 消息气泡
    *
-   * 参考图里气泡是白底、圆角 14、左上角略小（表示来自右侧的自己人说出去的不对称感），
-   * 这里保持左上 4、其余 14，气泡之间的间距 8。
+   * 小K：白底、左上角略小（4），占满一行；
+   * 我：主色红底白字、右上角略小，靠右且最多占 82% 宽 —— 这样一眼能分清谁在说话。
+   * 两种气泡之间的间距都是 6。
    */
   @Builder
-  bubble(text: string, withSpeaker: boolean) {
+  bubble(text: string, mine: boolean, withSpeaker: boolean) {
     Row() {
       Column() {
         Text(text)
           .fontSize(13.5)
           .lineHeight(19)
-          .fontColor(Theme.TEXT)
+          .fontColor(mine ? '#FFFFFF' : Theme.TEXT)
           .width('100%')
 
         if (withSpeaker) {
@@ -469,12 +627,15 @@ struct AIChatPage {
       }
       .alignItems(HorizontalAlign.Start)
       .padding({ left: 11, right: 11, top: 8, bottom: 8 })
-      .backgroundColor('#FFFFFF')
-      .borderRadius({ topLeft: 4, topRight: 14, bottomLeft: 14, bottomRight: 14 })
+      .backgroundColor(mine ? Theme.PRIMARY : '#FFFFFF')
+      .width(mine ? '82%' : '100%')
+      .borderRadius(mine
+        ? { topLeft: 14, topRight: 4, bottomLeft: 14, bottomRight: 14 }
+        : { topLeft: 4, topRight: 14, bottomLeft: 14, bottomRight: 14 })
       .shadow({ radius: 8, color: '#0F000000', offsetX: 0, offsetY: 2 })
-      .width('100%')
     }
     .width('100%')
+    .justifyContent(mine ? FlexAlign.End : FlexAlign.Start)
     .margin({ bottom: 6 })
   }
 
@@ -696,17 +857,30 @@ struct AIChatPage {
           .backgroundColor(Theme.THUMB_BG)
         }
 
-        // 「选N」贴纸
-        Text(item.label)
-          .fontSize(9)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF')
-          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-          .borderRadius(4)
-          .linearGradient({
-            angle: 180,
-            colors: [['#FF8C9C', 0.0], ['#FF4D6A', 1.0]]
-          })
+        // 贴纸：默认「选N」；已加过同一个餐品就换成绿色「已加」，不用再点一次确认
+        if (this.isAdded(item.product.id)) {
+          Text('已加')
+            .fontSize(9)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFFFFF')
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(4)
+            .linearGradient({
+              angle: 180,
+              colors: [['#5FCB8B', 0.0], ['#22A45D', 1.0]]
+            })
+        } else {
+          Text(item.label)
+            .fontSize(9)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFFFFF')
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .borderRadius(4)
+            .linearGradient({
+              angle: 180,
+              colors: [['#FF8C9C', 0.0], ['#FF4D6A', 1.0]]
+            })
+        }
       }
       .width('100%')
 
@@ -826,7 +1000,7 @@ struct AIChatPage {
         .fontColor(Theme.PRIMARY)
         .margin({ top: 8 })
         .onClick(() => {
-          this.recommend('');
+          this.ask(this.lastAsk, false);
         })
     }
     .width('100%')
@@ -927,15 +1101,23 @@ struct AIChatPage {
   }
 
   private onChip(action: string): void {
-    if (action === 'refresh') {
-      this.recommend('换一换');
+    if (this.loading || this.picking) {
+      this.toast('小K 正在想，稍等一下');
       return;
     }
-    // 开启新对话：先把上一轮的状态清干净，再按首屏重新问一次
+    if (action === 'refresh') {
+      // 换一换：保留对话记录，只换一批菜（不算一轮新对话，所以不进历史）
+      this.ask('换一换', false);
+      return;
+    }
+    // 开启新对话：气泡、上下文、已加标记、卡片全部推翻重来
+    this.messages = [];
+    this.history = [];
     this.items = [];
-    this.reply = '';
+    this.addedIds = [];
     this.degraded = false;
     this.degradeReason = '';
-    this.recommend('');
+    this.say(false, 'Hi，我是小K！看看今天的推荐吧！');
+    this.ask('', false);
   }
 }

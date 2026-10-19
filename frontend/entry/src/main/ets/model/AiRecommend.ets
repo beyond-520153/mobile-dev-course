@@ -36,3 +36,15 @@ export interface AiRecommend {
   model: string;
   costMs: number;
 }
+
+/**
+ * 一轮对话，对应后端 AiChatDTO.ChatTurn
+ *
+ * 前端自己存着往前带，后端只做校验与截断（最多留最近 6 条）。
+ * 有了它，「来点辣的」→「再来个喝的」才能接上上文。
+ */
+export interface ChatTurn {
+  /** user 或 assistant */
+  role: string;
+  text: string;
+}

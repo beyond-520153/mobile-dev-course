@@ -1,5 +1,5 @@
 import { HttpClient } from './HttpClient';
-import { AiRecommend } from '../model/AiRecommend';
+import { AiRecommend, ChatTurn } from '../model/AiRecommend';
 
 /**
  * AI 点餐入参，对应后端 domain/dto/AiChatDTO.java
@@ -11,6 +11,8 @@ export interface AiChatBody {
   pickupType: string;
   /** 要几张卡片，后端会裁到 1~9 */
   count: number;
+  /** 前几轮对话，后端只留最近 6 条、role 只认 user/assistant */
+  history: ChatTurn[];
 }
 
 /**
@@ -27,12 +29,14 @@ export class AiApi {
    *
    * @param message    用户的话，空串表示首屏；「换一换」也会原样传下去
    * @param pickupType 取餐方式，只影响话术
+   * @param history    之前的对话，用于接上下文；首屏传空数组
    */
-  static recommend(message: string, pickupType: string): Promise<AiRecommend> {
+  static recommend(message: string, pickupType: string, history: ChatTurn[]): Promise<AiRecommend> {
     const body: AiChatBody = {
       message: message,
       pickupType: pickupType,
-      count: 6
+      count: 6,
+      history: history
     };
     // 模型出结果通常 2~4 秒，留 35 秒余量；比 HttpClient 默认的 10 秒宽
     return HttpClient.post<AiRecommend>('/api/ai/recommend', body, 35000);

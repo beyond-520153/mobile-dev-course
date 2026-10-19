@@ -232,11 +232,11 @@
   .plus:active{background:var(--primary-dark)}
   .plus.off{background:#D9D9D9;cursor:not-allowed}
 
-  /* 底部购物车条 —— 官方是整条反色：未选餐品整条灰底白字，有商品整条红底白字，
-     不是白底 + 红字。高度 100rpx=52px，圆角只有右端（左侧贴边）。 */
+  /* 底部购物车条 —— 整条反色：未选餐品灰底白字，有商品红底白字，不是白底 + 红字。
+     高度 100rpx=52px。点餐页里它左侧与「优惠助手」并列，故自身不再留左侧空档。 */
   .cartbar{
     position:relative;height:52px;display:flex;align-items:center;flex:none;
-    padding:0 12px 0 106px;gap:9px;background:#C6C6C6;color:#fff;
+    padding:0 12px;gap:9px;background:#C6C6C6;color:#fff;
     cursor:pointer;transition:background .15s;
   }
   .cartbar.on{background:var(--primary)}
@@ -256,12 +256,17 @@
     display:flex;align-items:center;justify-content:center;cursor:pointer;
   }
   .cartbar.on .go{background:#fff;color:var(--primary)}
-  /* 优惠助手：官方是压在购物车条左端的一枚深色胶囊，条的内容整体右移给它让位 */
+  /* 底部条容器：优惠助手与购物车条【并列】等高，互不包含、互不重叠 */
+  .bottombar{display:flex;align-items:stretch;flex:none;height:52px}
+  .bottombar .cartbar{flex:1;min-width:0;height:52px}
+  /* 优惠助手：左侧独立深色块，与购物车条左右并列、上下对齐 */
   .helper-fab{
-    position:absolute;left:8px;bottom:0;z-index:9;
-    background:#333;color:#fff;font-size:13.5px;line-height:1;padding:13px 15px;border-radius:6px;
-    cursor:pointer;white-space:nowrap;
+    flex:none;width:86px;height:52px;
+    display:flex;align-items:center;justify-content:center;
+    background:#2B2B2B;color:#fff;font-size:13.5px;line-height:1;
+    cursor:pointer;white-space:nowrap;letter-spacing:.3px;
   }
+  .helper-fab:active{background:#1A1A1A}
 
   /* ==================== 规格选择页 ====================
      照官方：返回 + 居中标题 → 分节（左侧黑竖条 + 粗标题）→ 三列选项卡
@@ -724,6 +729,9 @@
     font-size:10px;cursor:pointer;width:fit-content}
   .aibubble .sp svg{width:14px;height:14px}
   .aibubble .tip{font-size:11px;color:#B5B5B5;text-align:center;margin:8px 0}
+  /* 自己说的：靠右、红底白字、右上角收一点，和左侧白气泡形成对话感 */
+  .aibubble.mine{margin-left:auto;background:var(--primary);color:#fff;max-width:82%;
+    border-radius:14px 4px 14px 14px;box-shadow:0 2px 8px rgba(228,0,43,.18)}
 
   .aicard{background:#FFF5F6;border-radius:16px;padding:9px;margin-top:2px}
   .aistore{display:flex;align-items:center;gap:7px}
@@ -763,6 +771,8 @@
   .aipick .sel{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:2;
     background:linear-gradient(180deg,#FF8C9C,#FF4D6A);color:#fff;font-size:9px;
     padding:2px 6px;border-radius:0 0 4px 4px;letter-spacing:.2px}
+  /* 已加过车的餐品：贴纸变绿，回头扫一眼就知道哪些点过了 */
+  .aipick .sel.done{background:linear-gradient(180deg,#5FCB8B,#22A45D)}
   .aipick .nm{font-size:11px;line-height:15px;height:26px;margin-top:3px;overflow:hidden;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;text-align:center;color:#1A1A1A}
   .aipick .pr{display:flex;align-items:baseline;color:var(--primary);font-weight:700;margin-top:2px}
@@ -863,7 +873,15 @@ const state = {
   ai: null,
   aiLoading: false,
   aiError: '',
-  /** 文字输入浮层 */
+  /** 对话气泡（mine=true 是我说的）、模型上下文、已加过车的餐品 */
+  aiMsgs: [],
+  aiHistory: [],
+  aiAdded: {},
+  aiSeq: 0,
+  aiPicking: false,
+  /** 上次发出去的话，失败后「重新试试」用它 */
+  aiLastAsk: '',
+  /** 输入框内容 */
   aiDraft: '',
   /** 规格选择页：当前编辑的餐品 + 已选规格（分组 id → 选项 id）+ 数量 */
   specProduct: null,
@@ -1087,7 +1105,10 @@ function go(view) {
   if (view === 'orders') loadOrders().then(render).catch(e => toast(e.message));
   if (view === 'address') loadAddresses().then(render).catch(e => toast(e.message));
   // AI 点餐：只有第一次进（或上次失败）才真去调模型，来回切 tab 不重复计费
-  if (view === 'ai' && (!state.ai || state.aiError)) loadAi('');
+  if (view === 'ai' && !state.aiMsgs.length) {
+    aiSay(false, 'Hi，我是小K！看看今天的推荐吧！');
+    loadAi('', false);
+  }
   if (view === 'mine' && state.userId) {
     api('/users/' + state.userId).then(u => { state.user = u; render(); }).catch(() => {});
   }
@@ -1705,16 +1726,18 @@ function cartBar() {
   const [ai, ad] = amt.split('.');
   const sub = cartBenefitText() || ('已选 ' + state.cartCount + ' 件');
   return `
-    <div class="cartbar ${on ? 'on' : ''}" data-act="go-cart">
+    <div class="bottombar">
       <div class="helper-fab" data-act="helper" title="优惠助手">优惠助手</div>
-      <div class="bag">${ICON.cart}</div>
-      <div class="cartinfo">
-        ${on
-          ? `<div class="amt"><small>¥</small>${ai}<em>.${ad}</em></div>
-             <div class="sub">${esc(sub)}</div>`
-          : `<div class="ph">未选购餐品</div>`}
+      <div class="cartbar ${on ? 'on' : ''}" data-act="go-cart">
+        <div class="bag">${ICON.cart}</div>
+        <div class="cartinfo">
+          ${on
+            ? `<div class="amt"><small>¥</small>${ai}<em>.${ad}</em></div>
+               <div class="sub">${esc(sub)}</div>`
+            : `<div class="ph">未选购餐品</div>`}
+        </div>
+        <button class="go" data-act="go-cart">选好了</button>
       </div>
-      <button class="go" data-act="go-cart">选好了</button>
     </div>`;
 }
 
@@ -2209,7 +2232,33 @@ function aiOrigin(p) {
  * 后端拿到的是真实菜单，模型只负责「挑哪几样 + 说一句话」，
  * 图片/价格/会员价全部回表补，所以这里拿到的每张卡都能直接加购。
  */
-async function loadAi(message) {
+/** 追加一条气泡 */
+function aiSay(mine, text) {
+  state.aiSeq += 1;
+  state.aiMsgs.push({ id: state.aiSeq, mine: mine, text: text });
+}
+
+/** 小K 的话术：门店 + 模型回复 + 引导 */
+function aiTalk(reply, store) {
+  const name = store ? store.name : '农林大学餐厅';
+  return '已为您选择【' + name + '】，' + (reply || '')
+    + '下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：';
+}
+
+function scrollAiToEnd() {
+  const box = document.querySelector('.aiscroll');
+  if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 60);
+}
+
+/**
+ * 问一轮推荐
+ *
+ * @param message  传给模型的话；空串表示首屏
+ * @param echoUser 是否先把我说的这句话挂成气泡
+ */
+async function loadAi(message, echoUser) {
+  state.aiLastAsk = message || '';
+  if (echoUser) aiSay(true, message);
   state.aiLoading = true;
   state.aiError = '';
   render();
@@ -2217,14 +2266,79 @@ async function loadAi(message) {
     state.ai = await api('/ai/recommend', 'POST', {
       message: message || '',
       pickupType: state.pickupType,
-      count: 6
+      count: 6,
+      history: state.aiHistory
     });
+    // 首屏与「换一换」没有语义增量，不进上下文
+    if (message && message !== '换一换') {
+      state.aiHistory = state.aiHistory.concat([
+        { role: 'user', text: message },
+        { role: 'assistant', text: state.ai.reply || '' }
+      ]).slice(-6);
+    }
+    aiSay(false, aiTalk(state.ai.reply, state.ai.store));
   } catch (e) {
     state.aiError = e.message || '推荐失败，请稍后重试';
     state.ai = null;
+    aiSay(false, '不好意思，小K 刚才没连上菜单，点下面的「重新试试」再来一次。');
   }
   state.aiLoading = false;
   render();
+  // 首屏别滚：刚进来要看得到自我介绍和话术
+  if (message) scrollAiToEnd();
+}
+
+const AI_CN = '一二三四五六七八九';
+/* 只认这些字符组成的句子，避免「两个人吃」被当成选 2 号 */
+const AI_PICK_CHARS = ' 选要加来第个号件份和、,，0123456789一二三四五六七八九';
+
+/** 把「选1和2」「第 3 个」解析成卡片编号 */
+function aiParsePicks(text) {
+  for (const ch of text) {
+    if (AI_PICK_CHARS.indexOf(ch) < 0) return [];
+  }
+  const items = state.ai && state.ai.items ? state.ai.items : [];
+  const out = [];
+  for (const ch of text) {
+    let v = -1;
+    if (ch >= '0' && ch <= '9') v = Number(ch);
+    else {
+      const at = AI_CN.indexOf(ch);
+      if (at >= 0) v = at + 1;
+    }
+    if (v >= 1 && v <= items.length && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+/** 按编号批量加车，并回一句人话 */
+async function aiAddPicked(indexes) {
+  if (!state.userId) {
+    aiSay(false, '要先登录才能加餐车哦，回入口页登录一下再试。');
+    render();
+    return;
+  }
+  state.aiPicking = true;
+  const names = [];
+  const items = state.ai && state.ai.items ? state.ai.items : [];
+  for (const idx of indexes) {
+    const hit = items.find(x => x.index === idx);
+    if (!hit) continue;
+    try {
+      await api('/cart-items', 'POST', { userId: state.userId, productId: hit.product.id, quantity: 1 });
+      names.push(hit.product.name);
+      state.aiAdded[hit.product.id] = 1;
+    } catch (e) {
+      toast(e.message || '加入餐车失败');
+    }
+  }
+  await loadCart();
+  state.aiPicking = false;
+  aiSay(false, names.length
+    ? '好嘞，' + names.join('、') + ' 已经放进餐车，还要再加点别的吗？'
+    : '这次的推荐里没对上号，说说想吃哪一类，我再挑。');
+  render();
+  scrollAiToEnd();
 }
 
 function aiSkeleton() {
@@ -2240,8 +2354,10 @@ function aiPickCell(it) {
     ? '<img src="' + esc(p.image) + '" alt="">'
     : ICON.burger;
   const org = aiOrigin(p);
+  const done = !!state.aiAdded[p.id];
   return '<div class="aipick" data-aipick="' + p.id + '">'
-    + '<div class="imgwrap">' + img + '<span class="sel">' + esc(it.label) + '</span></div>'
+    + '<div class="imgwrap">' + img
+    + '<span class="sel' + (done ? ' done' : '') + '">' + (done ? '已加' : esc(it.label)) + '</span></div>'
     + '<div class="nm">' + esc(p.name) + '</div>'
     + '<div class="pr"><small>¥</small><b>' + aiPrice(p) + '</b><u>起</u></div>'
     + '<div class="org">' + (org ? '¥' + org : '') + '</div>'
@@ -2277,13 +2393,6 @@ function viewAi() {
   const ai = state.ai;
   const store = ai && ai.store ? ai.store : null;
   const name = store ? store.name : '农林大学餐厅';
-  // 请求失败时别装作有推荐：下面空着、文案还在说「看下面的推荐」会自相矛盾
-  const talk = state.aiError
-    ? '不好意思，小K 刚才没连上菜单，点下面的「重新试试」再来一次。'
-    : '已为您选择【' + name + '】，'
-      + (ai && ai.reply ? ai.reply : '')
-      + '下面是小K的推荐和理由，点图片下方的卡片就能加入餐车：';
-
   let body = '';
   if (state.aiLoading) {
     body = aiSkeleton();
@@ -2321,9 +2430,10 @@ function viewAi() {
     + '<div class="sub">天生翅粉 宇宙同频</div></div>'
     + '</div>'
     + '<div class="aiscroll">'
-    + '<div class="aibubble">Hi，我是小K！看看今天的推荐吧！</div>'
-    + '<div class="aibubble">' + esc(talk)
-    + '<div class="sp" data-aivoice="1">' + ICON.volume + '</div></div>'
+    + state.aiMsgs.map(m => '<div class="aibubble' + (m.mine ? ' mine' : '') + '">'
+      + esc(m.text)
+      + (m.mine ? '' : '<div class="sp" data-aivoice="1">' + ICON.volume + '</div>')
+      + '</div>').join('')
     + degradeTip + body
     + '<div style="height:14px"></div>'
     + '</div>'
@@ -2501,21 +2611,35 @@ function bind() {
     el.onclick = () => toast('语音播报暂未接入，先看文字吧');
   });
   screen.querySelectorAll('[data-airefresh]').forEach(el => {
-    el.onclick = () => loadAi('换一换');
+    // 错误态里的「重新试试」重发上一句；底部的「换一换」换一批
+    el.onclick = () => loadAi(el.classList.contains('aichip') ? '换一换' : (state.aiLastAsk || ''), false);
   });
   screen.querySelectorAll('[data-ainew]').forEach(el => {
-    el.onclick = () => { state.aiDraft = ''; loadAi(''); };
+    el.onclick = () => {
+      // 开启新对话：气泡、上下文、已加标记全部推翻重来
+      state.aiMsgs = [];
+      state.aiHistory = [];
+      state.aiAdded = {};
+      state.aiDraft = '';
+      aiSay(false, 'Hi，我是小K！看看今天的推荐吧！');
+      loadAi('', false);
+    };
   });
   // 发送：空串不发（模型对着空话也只能再给一份热门，白等 3 秒）
   const aiSend = () => {
     const input = document.getElementById('ai-draft');
     const text = input ? input.value.trim() : '';
-    if (!text || state.aiLoading) {
-      if (!text) toast('先说说你想吃什么');
+    if (!text) { toast('先说说你想吃什么'); return; }
+    if (state.aiLoading || state.aiPicking) { toast('小K 正在想，稍等一下'); return; }
+    state.aiDraft = '';
+    // 「选1和2」这类是明确指令，本地直接加车，不花三秒问模型
+    const picked = aiParsePicks(text);
+    if (picked.length) {
+      aiSay(true, text);
+      aiAddPicked(picked);
       return;
     }
-    state.aiDraft = '';
-    loadAi(text);
+    loadAi(text, true);
   };
   screen.querySelectorAll('[data-aisend]').forEach(el => { el.onclick = aiSend; });
   const aiDraftEl = document.getElementById('ai-draft');
