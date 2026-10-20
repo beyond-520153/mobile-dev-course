@@ -551,6 +551,22 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 > 请求体是标准 `/chat/completions`，`enable_thinking=false` + `response_format=json_object`。
 > 不传 `enable_thinking` 时 qwen3 会先输出思考过程，延迟翻倍且 JSON 被污染。
 
+**Key 怎么给**：建 `backend/.env.local`（已在 `.gitignore`，不进仓库），内容一行：
+
+```properties
+KFC_AI_API_KEY=sk-你的key
+```
+
+`application.yml` 里已经用 `spring.config.import` 引了这个文件（同时容错
+`./.env.local` 和 `./backend/.env.local` 两个位置），所以 **IDEA 运行、命令行 `java -jar`、
+从仓库根启动都能自动读到**，不必每次先 `export`。文件不存在时 `optional` 会放行启动，
+AI 降级成「今日热门」而不是把服务搞挂。
+
+排查：`GET /api/ai/health` 的 `apiKeyConfigured` 为 `false` 就是没读到 ——
+页面会显示「未配置模型 API Key，先展示今日热门」。常见原因有两个：
+进程是在 `backend/` 之外的工作目录启动的（两个 import 路径都不命中）、
+或者 `.env.local` 里写成了 `export KFC_AI_API_KEY=...`（Spring 会把 `export ` 当成 key 的一部分）。
+
 ### 接口
 
 | 方法 | 路径 | 说明 |
@@ -644,6 +660,8 @@ Java 端不需要引 pinyin4j 依赖，查询就是普通的 `LIKE '%KW%'`。
 | **撤销预算**：说「不限预算了」→ 不再继承，合计 103.30 不被裁剪 | ✅ |
 | **选号加车**：「选1和2」→ 本地加 2 件、卡片变绿「已加」、不进历史 | ✅ |
 | **选号不误判**：「两个人吃」不会被当成选 2 号 | ✅ |
+| **Key 自动加载**：不设环境变量、直接 `java -jar`（backend/ 与仓库根各试一次）→ `apiKeyConfigured=true` | ✅ |
+| **同名餐品去重**：模型挑了两个「香辣鸡腿堡」→ 按菜名去重，6 条各不相同 | ✅ |
 | **套餐立减**：牛牛双人餐 90.60 → 优惠 5、应付 85.60 | ✅ |
 | **两件套 6 折**：红豆派 ×2（16）→ 优惠 6.40、应付 9.60（临时放开时段窗口验证，验完已还原 14:00-17:00） | ✅ |
 | **每日限次**：当天第二杯咖啡不再打折，提示「今日权益次数已用完」 | ✅ |

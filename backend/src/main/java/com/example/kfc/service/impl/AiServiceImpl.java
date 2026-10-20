@@ -193,18 +193,23 @@ public class AiServiceImpl implements AiService {
         }
 
         /* ---------------- 2. 校验 id：只认菜单里真实存在且在售的 ---------------- */
+        // 菜单里有 11 组同名餐品散在不同分类（香辣鸡腿堡在「汉堡」和「套餐」各一条），
+        // 模型看到的是两行不同的 id，会当成两样都推荐 —— 所以去重必须按「菜名 + id」双口径。
         List<Long> finalIds = new ArrayList<>();
+        Set<String> usedNames = new HashSet<>();
         for (Long id : modelPicked) {
             if (finalIds.size() >= count) {
                 break;
             }
             Product picked = byId.get(id);
-            boolean usable = picked != null
-                    && !finalIds.contains(id)
-                    && !isCondiment(picked, categoryNames);
-            if (usable) {
-                finalIds.add(id);
+            if (picked == null
+                    || finalIds.contains(id)
+                    || isCondiment(picked, categoryNames)
+                    || usedNames.contains(picked.getName())) {
+                continue;
             }
+            finalIds.add(id);
+            usedNames.add(picked.getName());
         }
         // 先记下「确实是模型挑的」这一批：预算裁剪后这些 id 的位置会变，
         // 不能再用下标判断来源
@@ -212,7 +217,7 @@ public class AiServiceImpl implements AiService {
 
         // 模型给漏了（或全是幻觉 id）就本地补位，保证卡片数量稳定
         if (finalIds.size() < count) {
-            finalIds.addAll(fallbackIds(menu, finalIds, count, categoryNames));
+            finalIds.addAll(fallbackIds(menu, finalIds, usedNames, count, categoryNames));
         }
 
         // 预算硬约束：模型经常「听懂了但没算」，这里在后端兜一道
@@ -470,11 +475,12 @@ public class AiServiceImpl implements AiService {
      * <p>组内排序：有库存 → 有图 → 原有 sortOrder。有图的排前面是因为
      * 六宫格里出现一张灰底占位图会很难看。
      */
-    private List<Long> fallbackIds(List<Product> menu, List<Long> exclude, int count,
-                                   Map<Long, String> categoryNames) {
+    private List<Long> fallbackIds(List<Product> menu, List<Long> exclude, Set<String> excludeNames,
+                                   int count, Map<Long, String> categoryNames) {
         Map<Long, List<Product>> byCategory = new LinkedHashMap<>();
         for (Product p : menu) {
-            if (exclude.contains(p.getId()) || isCondiment(p, categoryNames)) {
+            if (exclude.contains(p.getId()) || excludeNames.contains(p.getName())
+                    || isCondiment(p, categoryNames)) {
                 continue;
             }
             byCategory.computeIfAbsent(p.getCategoryId(), k -> new ArrayList<>()).add(p);
@@ -504,7 +510,7 @@ public class AiServiceImpl implements AiService {
             for (List<Product> group : byCategory.values()) {
                 if (round < group.size()) {
                     Long id = group.get(round).getId();
-                    if (!result.contains(id)) {
+                    if (!result.contains(id) && excludeNames.add(group.get(round).getName())) {
                         result.add(id);
                         added = true;
                         if (result.size() + exclude.size() >= count) {
@@ -582,7 +588,8 @@ public class AiServiceImpl implements AiService {
             if (kept.size() >= count) {
                 break;
             }
-            if (kept.contains(candidate.getId()) || isCondiment(candidate, categoryNames)) {
+            if (kept.contains(candidate.getId()) || isCondiment(candidate, categoryNames)
+                    || nameUsed(kept, candidate.getName(), byId)) {
                 continue;
             }
             BigDecimal price = priceOf(candidate);
@@ -658,6 +665,17 @@ public class AiServiceImpl implements AiService {
             }
         }
         return null;
+    }
+
+    /** kept 里是否已经有同名餐品（预算补位用） */
+    private static boolean nameUsed(List<Long> kept, String name, Map<Long, Product> byId) {
+        for (Long id : kept) {
+            Product p = byId.get(id);
+            if (p != null && name != null && name.equals(p.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private BigDecimal sumPrice(List<Long> ids, Map<Long, Product> byId) {
